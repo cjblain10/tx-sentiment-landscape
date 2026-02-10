@@ -17,8 +17,8 @@ app.get('/api/health', (req, res) => {
 // Get today's sentiment data (real or mock based on env)
 app.get('/api/sentiment/today', async (req, res) => {
   try {
-    // If TWITTER_BEARER_TOKEN is set, use real data
-    if (process.env.TWITTER_BEARER_TOKEN || process.env.USE_MOCK === 'false') {
+    // Default to real data (USE_MOCK must be explicitly set to 'true' for mock)
+    if (process.env.USE_MOCK !== 'true') {
       console.log('📡 Fetching real Twitter data...');
 
       const figures = FIGURES;
