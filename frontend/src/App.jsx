@@ -3,6 +3,41 @@ import { TerrainVisualization } from './TerrainVisualization';
 import { getDailySentimentData } from './mockData';
 import './App.css';
 
+class VisualizationErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  componentDidCatch(error, info) {
+    console.error('Visualization crashed:', error, info);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{
+          width: '100%', height: '100%', display: 'flex',
+          alignItems: 'center', justifyContent: 'center',
+          background: '#f5ede4', color: '#7a6f66',
+          fontSize: '0.95rem', fontFamily: 'Inter, sans-serif',
+          padding: '2rem', textAlign: 'center',
+        }}>
+          <div>
+            <div style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>🗺️</div>
+            <div>3D visualization encountered an error</div>
+            <div style={{ fontSize: '0.85rem', marginTop: '0.5rem', opacity: 0.7 }}>
+              Sentiment data is still available in the sidebar
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function App() {
   const [sentimentData, setSentimentData] = useState(null);
   const [selectedFigure, setSelectedFigure] = useState(null);
@@ -46,7 +81,9 @@ function App() {
 
       <div className="main-layout">
         <div className="visualization-container">
-          <TerrainVisualization />
+          <VisualizationErrorBoundary>
+            <TerrainVisualization />
+          </VisualizationErrorBoundary>
           <div className="controls">
             <p className="tip">💡 Drag to rotate • Scroll to zoom</p>
           </div>

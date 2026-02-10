@@ -9,3 +9,8 @@ VITE_API_URL = "https://tx-sentinel-api.onrender.com"
 from = "/api/*"
 to = "https://tx-sentinel-api.onrender.com/api/:splat"
 status = 200
+
+[[redirects]]
+from = "/*"
+to = "/index.html"
+status = 200
