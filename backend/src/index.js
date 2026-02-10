@@ -41,25 +41,42 @@ app.get('/api/sentiment/today', async (req, res) => {
             m.toLowerCase().includes(figure.name.toLowerCase())
           );
 
-          const sentiment = await analyzeSentiment(figure.name, figureMentions);
+          // Calculate figure sentiment from topic sentiments
+          let figureSentiment = 0;
+          let topicCount = 0;
+          const figureTopics = [];
+
+          for (const topic of topics) {
+            const topicMentions = figureMentions.filter(m =>
+              m.toLowerCase().includes(topic.name.toLowerCase())
+            );
+
+            if (topicMentions.length > 0) {
+              const sentiment = await analyzeSentiment(topic.name, topicMentions);
+              figureSentiment += sentiment.sentiment;
+              topicCount++;
+
+              figureTopics.push({
+                name: topic.name,
+                sentiment: sentiment.sentiment,
+                volume: topicMentions.length,
+                topMentions: [{
+                  text: topicMentions[0] || `${topic.name} trending`,
+                  sentiment: sentiment.sentiment,
+                  source: 'twitter'
+                }]
+              });
+            }
+          }
 
           data.figures.push({
             id: figure.id,
             name: figure.name,
             x: figure.x,
             y: figure.y,
-            sentiment: sentiment.sentiment || 0,
+            sentiment: topicCount > 0 ? figureSentiment / topicCount : 0,
             volume: figureMentions.length,
-            issues: topics.slice(0, 5).map(t => ({
-              name: t.name,
-              sentiment: t.sentiment,
-              volume: Math.floor(Math.random() * 200),
-              topMentions: [{
-                text: figureMentions[0] || `${t.name} trending`,
-                sentiment: t.sentiment,
-                source: 'twitter'
-              }]
-            }))
+            issues: figureTopics.slice(0, 7)
           });
         }
 
