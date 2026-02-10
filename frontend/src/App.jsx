@@ -1,21 +1,30 @@
 import React, { useEffect, useState } from 'react';
 import { TerrainVisualization } from './TerrainVisualization';
+import { getDailySentimentData } from './mockData';
 import './App.css';
 
 function App() {
   const [sentimentData, setSentimentData] = useState(null);
   const [selectedFigure, setSelectedFigure] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [dataSource, setDataSource] = useState('mock'); // 'api' or 'mock'
 
   useEffect(() => {
+    // Try to fetch from API, fall back to mock data
     fetch('/api/sentiment/today')
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error('API failed');
+        return res.json();
+      })
       .then(data => {
         setSentimentData(data);
+        setDataSource('api');
         setLoading(false);
       })
       .catch(err => {
-        console.error('Failed to fetch sentiment data:', err);
+        console.log('Using mock data (API unavailable):', err.message);
+        setSentimentData(getDailySentimentData());
+        setDataSource('mock');
         setLoading(false);
       });
   }, []);
@@ -93,7 +102,10 @@ function App() {
       </div>
 
       <footer className="footer">
-        <p>🚀 Mock data • Real API integration coming soon</p>
+        <p>
+          🚀 {dataSource === 'api' ? '✅ Live API' : '📊 Mock Data'} •
+          {dataSource === 'mock' && ' Backend API coming soon'}
+        </p>
       </footer>
     </div>
   );
