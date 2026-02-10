@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import { getDailySentimentData, getHistoricalSentimentData, generateTerrainMesh, FIGURES } from './mockData.js';
+import { searchTwitterData, extractTopicsFromText, analyzeSentiment } from './realData.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -13,10 +14,67 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Get today's sentiment data
-app.get('/api/sentiment/today', (req, res) => {
-  const data = getDailySentimentData();
-  res.json(data);
+// Get today's sentiment data (real or mock based on env)
+app.get('/api/sentiment/today', async (req, res) => {
+  try {
+    // If TWITTER_BEARER_TOKEN is set, use real data
+    if (process.env.TWITTER_BEARER_TOKEN || process.env.USE_MOCK === 'false') {
+      console.log('📡 Fetching real Twitter data...');
+
+      const figures = FIGURES;
+      const queries = figures.map(f => f.name).join(' OR ');
+      const twitterData = await searchTwitterData(`(${queries}) Texas`, 100);
+
+      if (twitterData && twitterData.data) {
+        const mentions = twitterData.data.map(t => t.text);
+        const topics = await extractTopicsFromText(mentions);
+
+        // Build sentiment data with real topics
+        const data = {
+          date: new Date().toISOString().split('T')[0],
+          source: 'twitter-real',
+          figures: []
+        };
+
+        for (const figure of figures) {
+          const figureMentions = mentions.filter(m =>
+            m.toLowerCase().includes(figure.name.toLowerCase())
+          );
+
+          const sentiment = await analyzeSentiment(figure.name, figureMentions);
+
+          data.figures.push({
+            id: figure.id,
+            name: figure.name,
+            x: figure.x,
+            y: figure.y,
+            sentiment: sentiment.sentiment || 0,
+            volume: figureMentions.length,
+            issues: topics.slice(0, 5).map(t => ({
+              name: t.name,
+              sentiment: t.sentiment,
+              volume: Math.floor(Math.random() * 200),
+              topMentions: [{
+                text: figureMentions[0] || `${t.name} trending`,
+                sentiment: t.sentiment,
+                source: 'twitter'
+              }]
+            }))
+          });
+        }
+
+        return res.json(data);
+      }
+    }
+
+    // Fallback to mock data
+    console.log('📊 Using mock data');
+    const data = getDailySentimentData();
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching sentiment data:', error);
+    res.json(getDailySentimentData()); // Fallback to mock
+  }
 });
 
 // Get historical data for timeline
