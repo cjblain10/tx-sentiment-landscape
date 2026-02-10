@@ -45,14 +45,14 @@ async function searchTwitterAlternative(query, maxResults = 100) {
     console.warn('⚠️ No Twitter Bearer token - returning demo data');
     return {
       data: [
-        { id: '1', text: `Texas Governor announces border security increase amid immigration surge`, author_id: '123' },
-        { id: '2', text: `ERCOT issues grid alert as winter demand peaks`, author_id: '456' },
-        { id: '3', text: `Education bill passes with bipartisan support in Texas legislature`, author_id: '789' },
-        { id: '4', text: `Healthcare expansion debate intensifies at state level`, author_id: '101112' },
-        { id: '5', text: `Governor vetoes controversial education funding measure`, author_id: '131415' },
-        { id: '6', text: `Attorney General launches investigation into healthcare pricing`, author_id: '161718' },
-        { id: '7', text: `Economic growth report shows Texas leading national recovery`, author_id: '192021' },
-        { id: '8', text: `Senate committee debates border wall funding allocation`, author_id: '222324' },
+        { id: '1', text: `TX Governor announces strong border security enforcement amid immigration surge`, author_id: '123' },
+        { id: '2', text: `Lt. Governor strongly supports energy grid expansion as ERCOT issues critical alerts`, author_id: '456' },
+        { id: '3', text: `Jon Cornyn backs education bill - bipartisan support for school funding reform`, author_id: '789' },
+        { id: '4', text: `Attorney General launches major investigation into healthcare pricing crisis`, author_id: '101112' },
+        { id: '5', text: `Ted Cruz criticizes border wall funding debate, Jon Cornyn supports security measures`, author_id: '131415' },
+        { id: '6', text: `Wesley Hunt advocates for education reform and excellent school curriculum initiatives`, author_id: '161718' },
+        { id: '7', text: `Jasmine Crockett comments on strong economic growth and healthcare expansion plan`, author_id: '192021' },
+        { id: '8', text: `James Talarico champions education reform and robust border security oversight`, author_id: '222324' },
       ],
     };
   }
@@ -78,14 +78,14 @@ async function searchTwitterAlternative(query, maxResults = 100) {
     // Return demo data as final fallback
     return {
       data: [
-        { id: '1', text: `Texas Governor announces border security increase`, author_id: '123' },
-        { id: '2', text: `ERCOT issues grid alert`, author_id: '456' },
-        { id: '3', text: `Education bill passes in legislature`, author_id: '789' },
-        { id: '4', text: `Healthcare debate intensifies`, author_id: '101112' },
-        { id: '5', text: `Economic growth leads nation`, author_id: '131415' },
-        { id: '6', text: `Attorney General launches investigation`, author_id: '161718' },
-        { id: '7', text: `Senate debates funding allocation`, author_id: '192021' },
-        { id: '8', text: `Governor announces new policy`, author_id: '222324' },
+        { id: '1', text: `TX Governor announces strong border security enforcement measures`, author_id: '123' },
+        { id: '2', text: `Lt. Governor supports energy grid expansion amid ERCOT alerts`, author_id: '456' },
+        { id: '3', text: `Jon Cornyn backs education school funding bill`, author_id: '789' },
+        { id: '4', text: `Attorney General launches investigation into healthcare pricing crisis`, author_id: '101112' },
+        { id: '5', text: `Ted Cruz criticizes border security debate, Jon Cornyn supports reform`, author_id: '131415' },
+        { id: '6', text: `Wesley Hunt champions education curriculum improvements`, author_id: '161718' },
+        { id: '7', text: `Jasmine Crockett comments on strong economic growth`, author_id: '192021' },
+        { id: '8', text: `James Talarico advocates for healthcare expansion success`, author_id: '222324' },
       ],
     };
   }
