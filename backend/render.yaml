@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: tx-sentiment-api
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: COMPOSIO_API_KEY
+        value: ak_cdwQZVwTOel5YxPz9BgL
+      - key: USE_MOCK
+        value: "false"
+      - key: NODE_ENV
+        value: production
