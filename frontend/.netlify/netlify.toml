@@ -1,19 +1,20 @@
+redirectsOrigin = "config"
 plugins = []
 headers = []
-redirects = []
 
 [functions]
 
 [functions."*"]
 
 [build]
-publish = "/Users/cb/Projects/tx-sentiment-landscape/frontend/frontend/dist"
-publishOrigin = "ui"
-commandOrigin = "ui"
+publish = "/Users/cb/Projects/tx-sentiment-landscape/frontend/dist"
+publishOrigin = "config"
+commandOrigin = "config"
 base = "/Users/cb/Projects/tx-sentiment-landscape/frontend"
-command = "npm --workspace tx-sentiment-frontend run build"
+command = "npm run build"
 
 [build.environment]
+VITE_API_URL = "https://tx-sentinel-api.onrender.com"
 
 [build.processing]
 
@@ -26,3 +27,15 @@ command = "npm --workspace tx-sentiment-frontend run build"
 [build.processing.js]
 
 [build.services]
+
+[[redirects]]
+from = "/api/*"
+to = "https://tx-sentinel-api.onrender.com/api/:splat"
+status = 200.0
+force = false
+
+[redirects.query]
+
+[redirects.conditions]
+
+[redirects.headers]

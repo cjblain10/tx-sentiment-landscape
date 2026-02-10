@@ -11,18 +11,22 @@ function App() {
 
   useEffect(() => {
     // Try to fetch from API, fall back to mock data
-    fetch('/api/sentiment/today')
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    const url = `${apiUrl}/api/sentiment/today`;
+
+    fetch(url)
       .then(res => {
-        if (!res.ok) throw new Error('API failed');
+        if (!res.ok) throw new Error(`API failed: ${res.status}`);
         return res.json();
       })
       .then(data => {
         setSentimentData(data);
         setDataSource('api');
+        console.log('✅ Loaded from API:', url);
         setLoading(false);
       })
       .catch(err => {
-        console.log('Using mock data (API unavailable):', err.message);
+        console.warn('⚠️ Using mock data (API unavailable):', err.message);
         setSentimentData(getDailySentimentData());
         setDataSource('mock');
         setLoading(false);
