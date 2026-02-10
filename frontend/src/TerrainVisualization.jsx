@@ -28,7 +28,7 @@ export function TerrainVisualization() {
 
     // Three.js scene setup
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0a0e27); // Dark background
+    scene.background = new THREE.Color(0xf5ede4); // Light cream background
 
     const camera = new THREE.PerspectiveCamera(
       75,
@@ -50,7 +50,7 @@ export function TerrainVisualization() {
     geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(data.colors), 3));
 
     const material = new THREE.PointsMaterial({
-      size: 0.3,
+      size: 1.2,
       vertexColors: true,
       sizeAttenuation: true,
     });
@@ -68,7 +68,7 @@ export function TerrainVisualization() {
     scene.add(ambientLight);
 
     // Add grid helper
-    const gridHelper = new THREE.GridHelper(10, 10, 0x444444, 0x222222);
+    const gridHelper = new THREE.GridHelper(10, 10, 0xd4cac0, 0xe8ddd2);
     scene.add(gridHelper);
 
     // Add axes helper
