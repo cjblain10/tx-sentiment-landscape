@@ -44,16 +44,23 @@ const REGION_LABELS = {
 const POS_WORDS = ['great', 'good', 'excellent', 'strong', 'positive', 'support', 'success', 'win', 'approve', 'progress', 'reform', 'boost', 'improve', 'protect', 'secure', 'benefit', 'growth'];
 const NEG_WORDS = ['bad', 'poor', 'failed', 'weak', 'negative', 'crisis', 'disaster', 'corrupt', 'scandal', 'oppose', 'reject', 'waste', 'broken', 'dangerous', 'threat', 'attack', 'fear', 'decline'];
 
-// ── Twitter search ──
+// ── Twitter search — issue-focused, no politician names ──
 async function searchTexasWide(maxResults = 100) {
-  console.log('📡 Searching Texas-wide politics...');
+  // Build query from actual issue keywords
+  const issueTerms = [
+    'Texas border', 'Texas energy', 'ERCOT', 'Texas education', 'Texas healthcare',
+    'Texas housing', 'Texas crime', 'Texas abortion', 'Texas gun', 'Texas water',
+    'Texas drought', 'Texas election', 'Texas property tax', 'Texas transportation',
+  ];
+  const query = issueTerms.join(' OR ');
+  console.log('📡 Searching Texas issues...');
 
   try {
     const response = await fetch(`${COMPOSIO_BASE_URL}/actions/twitter/search_tweets`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${COMPOSIO_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        query: 'Texas politics OR Texas governor OR Texas legislature OR ERCOT OR Texas border',
+        query,
         max_results: Math.min(maxResults, 100),
         tweet_fields: 'author_id,created_at,public_metrics',
       }),
@@ -81,7 +88,7 @@ async function fallbackSearch(maxResults = 100) {
   }
 
   try {
-    const q = encodeURIComponent('Texas politics OR Texas governor OR ERCOT OR Texas border lang:en');
+    const q = encodeURIComponent('Texas border OR Texas energy OR ERCOT OR Texas education OR Texas healthcare OR Texas crime lang:en');
     const res = await fetch(
       `https://api.twitter.com/2/tweets/search/recent?query=${q}&max_results=${maxResults}&tweet_fields=author_id,created_at,public_metrics`,
       { headers: { 'Authorization': `Bearer ${bearerToken}` } }
