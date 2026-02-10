@@ -1,93 +1,158 @@
-// Mock sentiment data generator
-// Generates realistic-looking 3D terrain data without real API calls
+// Demo data generator — topic-based with regional breakdowns
+// Mirrors the real data shape so the frontend works identically
 
-export const FIGURES = [
-  { id: 'gov', name: 'TX Governor', x: 0, y: 0 },
-  { id: 'lt-gov', name: 'Lt. Governor', x: 1, y: 0 },
-  { id: 'ag', name: 'Attorney General', x: 2, y: 0 },
-  { id: 'wesley-hunt', name: 'Wesley Hunt', x: 0, y: 1 },
-  { id: 'jon-cornyn', name: 'Jon Cornyn', x: 1, y: 1 },
-  { id: 'ted-cruz', name: 'Ted Cruz', x: 2, y: 1 },
-  { id: 'jasmine-crockett', name: 'Jasmine Crockett', x: 0, y: 2 },
-  { id: 'james-talarico', name: 'James Talarico', x: 1, y: 2 },
+const REGIONS = ['gulf-coast', 'north-texas', 'central-texas', 'south-texas', 'west-texas', 'east-texas'];
+
+const REGION_LABELS = {
+  'gulf-coast': 'Houston / Gulf Coast',
+  'north-texas': 'Dallas-Fort Worth',
+  'central-texas': 'Austin / Central TX',
+  'south-texas': 'San Antonio / South TX',
+  'west-texas': 'West Texas',
+  'east-texas': 'East Texas',
+};
+
+const ALL_TOPICS = [
+  'border security', 'energy & grid', 'education', 'healthcare',
+  'economy & jobs', 'abortion', 'gun policy', 'water & drought',
+  'crime & safety', 'elections', 'housing', 'property tax',
+  'transportation', 'tech & innovation',
 ];
 
-export const ISSUES = [
-  'abortion',
-  'energy',
-  'border',
-  'education',
-  'economy',
-  'immigration',
-  'healthcare',
-];
+const SAMPLE_MENTIONS = {
+  'border security': [
+    'Texas border crossings hit new daily record amid federal policy debate',
+    'Governor deploys additional National Guard to border region',
+    'Border security funding bill advances through state legislature',
+  ],
+  'energy & grid': [
+    'ERCOT issues conservation alert as summer temperatures surge',
+    'Texas wind farms generate record power output this quarter',
+    'Grid reliability concerns as new data centers strain capacity',
+  ],
+  'education': [
+    'School voucher bill faces final vote in Texas House',
+    'Teacher shortage reaches critical levels in rural districts',
+    'State funding increase approved for public school districts',
+  ],
+  'healthcare': [
+    'Rural hospital closures accelerate across East Texas',
+    'Medicaid expansion debate resurfaces in legislature',
+    'Mental health funding bill gains bipartisan support',
+  ],
+  'economy & jobs': [
+    'Texas unemployment falls to lowest level in two years',
+    'Tech layoffs hit Austin hard as major firms restructure',
+    'Small business growth surges in DFW metro area',
+  ],
+  'abortion': [
+    'New legal challenge filed against state abortion restrictions',
+    'Reproductive healthcare access varies widely by region',
+    'Abortion debate dominates primary campaign messaging',
+  ],
+  'gun policy': [
+    'Open carry expansion bill introduced in special session',
+    'Gun violence prevention advocates rally at state capitol',
+    'School safety measures debated after recent incidents',
+  ],
+  'water & drought': [
+    'West Texas water levels drop to historic lows',
+    'State water board approves new conservation measures',
+    'Drought conditions expand across Panhandle region',
+  ],
+  'crime & safety': [
+    'Fentanyl seizures surge along southern corridor',
+    'Police staffing shortages hit major metro areas',
+    'Property crime rates diverge between urban and suburban areas',
+  ],
+  'elections': [
+    'Early voting turnout surpasses midterm projections',
+    'Redistricting challenges head to federal court',
+    'Campaign spending hits record levels in state races',
+  ],
+  'housing': [
+    'Housing affordability crisis deepens in Austin metro',
+    'Houston homelessness numbers show slight decline',
+    'New zoning proposals face pushback in Dallas suburbs',
+  ],
+  'property tax': [
+    'Property appraisals jump 15% in major metro areas',
+    'Homestead exemption increase signed into law',
+    'Tax relief measures face implementation challenges',
+  ],
+  'transportation': [
+    'I-35 expansion project enters controversial new phase',
+    'High speed rail proposal between Houston and Dallas revived',
+    'TxDOT announces major highway funding allocation',
+  ],
+  'tech & innovation': [
+    'New semiconductor fab breaks ground outside Austin',
+    'AI startups flock to Texas amid favorable business climate',
+    'SpaceX Starbase expansion draws mixed reactions in South TX',
+  ],
+};
 
-// Generate deterministic but varying sentiment data
-function generateSentiment(personId, issueId, dayOffset = 0) {
-  const seed = personId.charCodeAt(0) + issueId.charCodeAt(0) + dayOffset * 7;
-  const noise = Math.sin(seed) * 0.3;
-  const trend = Math.sin(dayOffset / 5) * 0.2; // Weekly oscillation
-  return Math.max(-1, Math.min(1, noise + trend));
+function seed(str, offset = 0) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = ((h << 5) - h + str.charCodeAt(i)) | 0;
+  return h + offset;
 }
 
-function generateVolume(personId, issueId, dayOffset = 0) {
-  const seed = personId.charCodeAt(0) * issueId.charCodeAt(0) + dayOffset * 11;
-  return Math.floor(50 + Math.abs(Math.sin(seed) * 150));
+function seededRandom(s) {
+  const x = Math.sin(s) * 10000;
+  return x - Math.floor(x);
 }
 
-// Get current day's sentiment data
+function genSentiment(name, dayOffset) {
+  const s = seed(name, dayOffset);
+  return Math.round((seededRandom(s) * 2 - 1) * 100) / 100;
+}
+
+function genVolume(name, dayOffset) {
+  const s = seed(name + 'vol', dayOffset);
+  return Math.floor(40 + seededRandom(s) * 260);
+}
+
 export function getDailySentimentData() {
   const today = new Date();
-  const dayOffset = Math.floor((today - new Date(2026, 1, 1)) / (1000 * 60 * 60 * 24));
+  const dayOffset = Math.floor((today - new Date(2026, 0, 1)) / (1000 * 60 * 60 * 24));
 
-  const data = {
-    date: today.toISOString().split('T')[0],
-    figures: [],
-  };
+  // Simulate dynamic: 6-10 active topics per day
+  const activeCount = 6 + Math.floor(seededRandom(seed('active', dayOffset)) * 5);
+  // Shuffle topics deterministically for this day
+  const shuffled = ALL_TOPICS.slice().sort((a, b) => seed(a, dayOffset) - seed(b, dayOffset));
+  const activeTopics = shuffled.slice(0, activeCount);
 
-  for (const figure of FIGURES) {
-    const figureData = {
-      ...figure,
-      sentiment: 0,
-      volume: 0,
-      issues: [],
-    };
+  const topics = activeTopics.map(name => {
+    const sentiment = genSentiment(name, dayOffset);
+    const volume = genVolume(name, dayOffset);
 
-    // Average sentiment across all issues
-    let totalSentiment = 0;
-    let totalVolume = 0;
-
-    for (const issue of ISSUES) {
-      const sentiment = generateSentiment(figure.id, issue, dayOffset);
-      const volume = generateVolume(figure.id, issue, dayOffset);
-
-      totalSentiment += sentiment;
-      totalVolume += volume;
-
-      figureData.issues.push({
-        name: issue,
-        sentiment,
-        volume,
-        topMentions: [
-          {
-            text: `"${issue}" trending with ${figure.name}`,
-            sentiment,
-            source: Math.random() > 0.5 ? 'twitter' : 'reddit',
-          },
-        ],
-      });
+    const byRegion = {};
+    for (const region of REGIONS) {
+      const rSentiment = genSentiment(name + region, dayOffset);
+      const rVolume = Math.floor(volume * (0.08 + seededRandom(seed(name + region + 'v', dayOffset)) * 0.25));
+      byRegion[region] = { sentiment: rSentiment, volume: rVolume };
     }
 
-    figureData.sentiment = totalSentiment / ISSUES.length;
-    figureData.volume = totalVolume;
+    const mentions = (SAMPLE_MENTIONS[name] || [`Trending discussion about ${name} in Texas`]).map((text, i) => ({
+      text,
+      sentiment: genSentiment(name + 'mention' + i, dayOffset),
+      source: 'twitter',
+      region: REGIONS[Math.floor(seededRandom(seed(name + 'mr' + i, dayOffset)) * REGIONS.length)],
+    }));
 
-    data.figures.push(figureData);
-  }
+    return { name, sentiment, volume, byRegion, topMentions: mentions };
+  }).sort((a, b) => b.volume - a.volume);
 
-  return data;
+  return {
+    date: today.toISOString().split('T')[0],
+    source: 'demo',
+    totalVolume: topics.reduce((s, t) => s + t.volume, 0),
+    regions: REGION_LABELS,
+    topics,
+  };
 }
 
-// Get historical data for timeline
 export function getHistoricalSentimentData(days = 30) {
   const history = [];
   const today = new Date();
@@ -95,86 +160,23 @@ export function getHistoricalSentimentData(days = 30) {
   for (let i = 0; i < days; i++) {
     const date = new Date(today);
     date.setDate(date.getDate() - i);
-    const dayOffset = Math.floor((date - new Date(2026, 1, 1)) / (1000 * 60 * 60 * 24));
+    const dayOffset = Math.floor((date - new Date(2026, 0, 1)) / (1000 * 60 * 60 * 24));
 
-    const dayData = {
+    const activeCount = 6 + Math.floor(seededRandom(seed('active', dayOffset)) * 5);
+    const shuffled = ALL_TOPICS.slice().sort((a, b) => seed(a, dayOffset) - seed(b, dayOffset));
+    const activeTopics = shuffled.slice(0, activeCount);
+
+    const topics = activeTopics.map(name => ({
+      name,
+      sentiment: genSentiment(name, dayOffset),
+      volume: genVolume(name, dayOffset),
+    }));
+
+    history.push({
       date: date.toISOString().split('T')[0],
-      figures: [],
-    };
-
-    for (const figure of FIGURES) {
-      const sentiment = generateSentiment(figure.id, 'avg', dayOffset);
-      const volume = generateVolume(figure.id, 'avg', dayOffset);
-
-      dayData.figures.push({
-        id: figure.id,
-        name: figure.name,
-        sentiment,
-        volume,
-      });
-    }
-
-    history.push(dayData);
+      topics,
+    });
   }
 
   return history.reverse();
-}
-
-// Generate 3D mesh vertices for Three.js
-export function generateTerrainMesh() {
-  const sentimentData = getDailySentimentData();
-  const vertices = [];
-  const colors = [];
-
-  // Create a grid where each figure is a region
-  for (const figure of sentimentData.figures) {
-    // Height = sentiment score
-    const height = figure.sentiment * 2; // Scale for visibility
-    const x = figure.x * 3;
-    const z = figure.y * 3;
-
-    // Volume determines color intensity
-    const intensity = Math.min(1, figure.volume / 300);
-    const hue = figure.sentiment > 0 ? 0.3 : 0; // Green for positive, red for negative
-    const saturation = intensity;
-
-    // Add vertex
-    vertices.push(x, height, z);
-
-    // Add color (HSL to RGB)
-    const rgb = hslToRgb(hue, saturation, 0.5);
-    colors.push(rgb.r, rgb.g, rgb.b);
-  }
-
-  return { vertices, colors };
-}
-
-// Helper: HSL to RGB
-function hslToRgb(h, s, l) {
-  let r, g, b;
-
-  if (s === 0) {
-    r = g = b = l;
-  } else {
-    const hue2rgb = (p, q, t) => {
-      if (t < 0) t += 1;
-      if (t > 1) t -= 1;
-      if (t < 1 / 6) return p + (q - p) * 6 * t;
-      if (t < 1 / 2) return q;
-      if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
-      return p;
-    };
-
-    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-    const p = 2 * l - q;
-    r = hue2rgb(p, q, h + 1 / 3);
-    g = hue2rgb(p, q, h);
-    b = hue2rgb(p, q, h - 1 / 3);
-  }
-
-  return {
-    r: Math.round(r * 255) / 255,
-    g: Math.round(g * 255) / 255,
-    b: Math.round(b * 255) / 255,
-  };
 }

@@ -1,191 +1,190 @@
-// Real-time sentiment analysis using Composio Twitter integration
+// Real-time Texas sentiment — dynamic topic discovery + region tagging
+
 const COMPOSIO_API_KEY = process.env.COMPOSIO_API_KEY || 'ak_cdwQZVwTOel5YxPz9BgL';
 const COMPOSIO_BASE_URL = 'https://api.composio.dev/v1';
 
-// Execute Composio Twitter action via API
-async function searchTwitterData(query, maxResults = 100) {
-  console.log(`🔍 Searching Twitter via Composio for: "${query}"`);
+// ── Broad topic dictionary — only topics with actual matches surface ──
+const TOPIC_SEEDS = {
+  'border security': ['border', 'wall', 'immigration', 'migrant', 'crossing', 'deportation', 'ice', 'cbp', 'asylum'],
+  'energy & grid': ['ercot', 'grid', 'power outage', 'energy', 'electricity', 'blackout', 'solar', 'wind farm', 'oil', 'natural gas', 'pipeline'],
+  'education': ['school', 'education', 'teacher', 'voucher', 'curriculum', 'student', 'university', 'tuition', 'isd'],
+  'healthcare': ['healthcare', 'medicaid', 'hospital', 'insurance', 'clinic', 'mental health', 'drug price', 'pharmaceutical'],
+  'economy & jobs': ['economy', 'jobs', 'unemployment', 'inflation', 'housing market', 'wage', 'business', 'recession'],
+  'abortion': ['abortion', 'reproductive', 'roe', 'planned parenthood', 'pro-life', 'pro-choice'],
+  'gun policy': ['gun', 'firearm', 'shooting', 'second amendment', '2a', 'nra', 'open carry'],
+  'water & drought': ['water', 'drought', 'flood', 'reservoir', 'aquifer', 'water supply', 'water rights'],
+  'crime & safety': ['crime', 'police', 'prison', 'arrest', 'murder', 'fentanyl', 'cartel', 'gang'],
+  'elections': ['vote', 'election', 'ballot', 'primary', 'campaign', 'polling', 'runoff', 'voter'],
+  'housing': ['housing', 'homeless', 'rent', 'mortgage', 'affordable housing', 'zoning', 'eviction'],
+  'transportation': ['highway', 'i-35', 'traffic', 'transit', 'txdot', 'toll road', 'high speed rail'],
+  'property tax': ['property tax', 'appraisal', 'homestead', 'tax relief', 'tax rate'],
+  'tech & innovation': ['tech', 'ai', 'startup', 'spacex', 'tesla', 'semiconductor', 'data center'],
+};
+
+// ── TX regions ──
+const TX_REGIONS = {
+  'gulf-coast': ['houston', 'galveston', 'beaumont', 'pasadena', 'sugar land', 'woodlands', 'katy', 'baytown', 'pearland', 'league city', 'port arthur', 'corpus christi', 'htx', 'htown'],
+  'north-texas': ['dallas', 'fort worth', 'plano', 'arlington', 'denton', 'frisco', 'mckinney', 'garland', 'irving', 'dfw', 'richardson'],
+  'central-texas': ['austin', 'waco', 'san marcos', 'round rock', 'temple', 'killeen', 'georgetown', 'pflugerville', 'atx'],
+  'south-texas': ['san antonio', 'laredo', 'mcallen', 'brownsville', 'harlingen', 'rgv', 'rio grande', 'edinburg', 'satx'],
+  'west-texas': ['el paso', 'midland', 'odessa', 'lubbock', 'amarillo', 'abilene', 'san angelo'],
+  'east-texas': ['tyler', 'longview', 'nacogdoches', 'lufkin', 'texarkana', 'marshall', 'etx'],
+};
+
+const REGION_LABELS = {
+  'gulf-coast': 'Houston / Gulf Coast',
+  'north-texas': 'Dallas-Fort Worth',
+  'central-texas': 'Austin / Central TX',
+  'south-texas': 'San Antonio / South TX',
+  'west-texas': 'West Texas',
+  'east-texas': 'East Texas',
+};
+
+// ── Sentiment keywords ──
+const POS_WORDS = ['great', 'good', 'excellent', 'strong', 'positive', 'support', 'success', 'win', 'approve', 'progress', 'reform', 'boost', 'improve', 'protect', 'secure', 'benefit', 'growth'];
+const NEG_WORDS = ['bad', 'poor', 'failed', 'weak', 'negative', 'crisis', 'disaster', 'corrupt', 'scandal', 'oppose', 'reject', 'waste', 'broken', 'dangerous', 'threat', 'attack', 'fear', 'decline'];
+
+// ── Twitter search ──
+async function searchTexasWide(maxResults = 100) {
+  console.log('📡 Searching Texas-wide politics...');
 
   try {
-    // Call Composio's Twitter search action via API
     const response = await fetch(`${COMPOSIO_BASE_URL}/actions/twitter/search_tweets`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${COMPOSIO_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Authorization': `Bearer ${COMPOSIO_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        query: query,
+        query: 'Texas politics OR Texas governor OR Texas legislature OR ERCOT OR Texas border',
         max_results: Math.min(maxResults, 100),
         tweet_fields: 'author_id,created_at,public_metrics',
       }),
     });
 
     if (!response.ok) {
-      console.warn(`⚠️ Composio API error: ${response.status}`);
-      // Fall back to alternative endpoint
-      return await searchTwitterAlternative(query, maxResults);
+      console.warn(`⚠️ Composio ${response.status}, trying fallback...`);
+      return await fallbackSearch(maxResults);
     }
 
     const data = await response.json();
-    console.log(`✅ Got ${data.data?.length || 0} tweets from Composio`);
+    console.log(`✅ Got ${data.data?.length || 0} tweets`);
     return data;
-  } catch (error) {
-    console.error(`❌ Twitter search error: ${error.message}`);
-    // Fallback to mock data
-    return await searchTwitterAlternative(query, maxResults);
+  } catch (err) {
+    console.error(`❌ Search error: ${err.message}`);
+    return await fallbackSearch(maxResults);
   }
 }
 
-// Alternative: Direct Twitter API v2 call (if bearer token available)
-async function searchTwitterAlternative(query, maxResults = 100) {
+async function fallbackSearch(maxResults = 100) {
   const bearerToken = process.env.TWITTER_BEARER_TOKEN;
-
   if (!bearerToken) {
-    console.warn('⚠️ No Twitter Bearer token - returning demo data');
-    return {
-      data: [
-        { id: '1', text: `TX Governor announces strong border security enforcement amid immigration surge`, author_id: '123' },
-        { id: '2', text: `Lt. Governor strongly supports energy grid expansion as ERCOT issues critical alerts`, author_id: '456' },
-        { id: '3', text: `Jon Cornyn backs education bill - bipartisan support for school funding reform`, author_id: '789' },
-        { id: '4', text: `Attorney General launches major investigation into healthcare pricing crisis`, author_id: '101112' },
-        { id: '5', text: `Ted Cruz criticizes border wall funding debate, Jon Cornyn supports security measures`, author_id: '131415' },
-        { id: '6', text: `Wesley Hunt advocates for education reform and excellent school curriculum initiatives`, author_id: '161718' },
-        { id: '7', text: `Jasmine Crockett comments on strong economic growth and healthcare expansion plan`, author_id: '192021' },
-        { id: '8', text: `James Talarico champions education reform and robust border security oversight`, author_id: '222324' },
-      ],
-    };
+    console.warn('⚠️ No bearer token — returning null (will use demo)');
+    return null;
   }
 
   try {
-    console.log('🔗 Using direct Twitter API v2...');
-    const response = await fetch(
-      `https://api.twitter.com/2/tweets/search/recent?query=${encodeURIComponent(query)}&max_results=${maxResults}&tweet_fields=author_id,created_at,public_metrics`,
-      {
-        headers: {
-          'Authorization': `Bearer ${bearerToken}`,
-        },
-      }
+    const q = encodeURIComponent('Texas politics OR Texas governor OR ERCOT OR Texas border lang:en');
+    const res = await fetch(
+      `https://api.twitter.com/2/tweets/search/recent?query=${q}&max_results=${maxResults}&tweet_fields=author_id,created_at,public_metrics`,
+      { headers: { 'Authorization': `Bearer ${bearerToken}` } }
     );
+    if (!res.ok) throw new Error(res.status);
+    return await res.json();
+  } catch (err) {
+    console.error(`Fallback failed: ${err.message}`);
+    return null;
+  }
+}
 
-    if (!response.ok) {
-      throw new Error(`Twitter API error: ${response.status}`);
+// ── Tag a tweet with topics + region ──
+function tagTweet(text) {
+  const lower = text.toLowerCase();
+
+  // Topics
+  const topics = [];
+  for (const [topic, keywords] of Object.entries(TOPIC_SEEDS)) {
+    const matches = keywords.filter(k => lower.includes(k));
+    if (matches.length > 0) topics.push(topic);
+  }
+
+  // Region
+  let region = null;
+  for (const [regionId, cities] of Object.entries(TX_REGIONS)) {
+    if (cities.some(c => lower.includes(c))) { region = regionId; break; }
+  }
+
+  // Sentiment
+  const posHits = POS_WORDS.filter(w => lower.includes(w)).length;
+  const negHits = NEG_WORDS.filter(w => lower.includes(w)).length;
+  const sentiment = (posHits - negHits) / (posHits + negHits || 1);
+
+  return { text, topics, region, sentiment: Math.max(-1, Math.min(1, sentiment)) };
+}
+
+// ── Build topic-based response from tagged tweets ──
+function buildTopicResponse(taggedTweets, date) {
+  const topicMap = {};
+
+  for (const tw of taggedTweets) {
+    for (const topicName of tw.topics) {
+      if (!topicMap[topicName]) {
+        topicMap[topicName] = { name: topicName, sentiments: [], volumes: 0, mentions: [], byRegion: {} };
+      }
+      const t = topicMap[topicName];
+      t.sentiments.push(tw.sentiment);
+      t.volumes++;
+      if (t.mentions.length < 6) {
+        t.mentions.push({ text: tw.text, sentiment: tw.sentiment, source: 'twitter', region: tw.region });
+      }
+
+      // Region breakdown
+      const reg = tw.region || '_statewide';
+      if (!t.byRegion[reg]) t.byRegion[reg] = { sentiments: [], volume: 0 };
+      t.byRegion[reg].sentiments.push(tw.sentiment);
+      t.byRegion[reg].volume++;
     }
-
-    return await response.json();
-  } catch (error) {
-    console.error(`Twitter API fallback failed: ${error.message}`);
-    // Return demo data as final fallback
-    return {
-      data: [
-        { id: '1', text: `TX Governor announces strong border security enforcement measures`, author_id: '123' },
-        { id: '2', text: `Lt. Governor supports energy grid expansion amid ERCOT alerts`, author_id: '456' },
-        { id: '3', text: `Jon Cornyn backs education school funding bill`, author_id: '789' },
-        { id: '4', text: `Attorney General launches investigation into healthcare pricing crisis`, author_id: '101112' },
-        { id: '5', text: `Ted Cruz criticizes border security debate, Jon Cornyn supports reform`, author_id: '131415' },
-        { id: '6', text: `Wesley Hunt champions education curriculum improvements`, author_id: '161718' },
-        { id: '7', text: `Jasmine Crockett comments on strong economic growth`, author_id: '192021' },
-        { id: '8', text: `James Talarico advocates for healthcare expansion success`, author_id: '222324' },
-      ],
-    };
-  }
-}
-
-// Extract topics using keyword analysis + emerging patterns
-async function extractTopicsFromText(texts) {
-  console.log("🎯 Extracting emerging topics from mentions...");
-
-  // Keywords associated with TX political discourse
-  const topicKeywords = {
-    border: [
-      "border",
-      "immigration",
-      "security",
-      "crossing",
-      "enforcement",
-    ],
-    energy: ["ercot", "grid", "power", "energy", "electricity"],
-    economy: ["budget", "taxes", "recession", "growth", "finance"],
-    education: [
-      "school",
-      "education",
-      "curriculum",
-      "voucher",
-      "teacher",
-    ],
-    healthcare: [
-      "healthcare",
-      "medicaid",
-      "health",
-      "insurance",
-      "clinic",
-    ],
-    abortion: ["abortion", "reproductive", "women", "choice", "roe"],
-    governance: [
-      "corruption",
-      "ethics",
-      "transparency",
-      "investigation",
-      "scandal",
-    ],
-  };
-
-  // Count topic mentions
-  const topicCounts = {};
-  const textLower = texts.join(" ").toLowerCase();
-
-  for (const [topic, keywords] of Object.entries(topicKeywords)) {
-    const count = keywords.filter(
-      (k) => textLower.includes(k)
-    ).length;
-    if (count > 0) topicCounts[topic] = count;
   }
 
-  // Sort by frequency and return top 5
-  const sorted = Object.entries(topicCounts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5);
-
-  return sorted.map(([name, count]) => ({
-    name,
-    sentiment: Math.random() * 0.4 - 0.2, // -0.2 to 0.2 baseline
-    volume: count,
-  }));
-}
-
-// Analyze sentiment using simple keyword scoring
-async function analyzeSentiment(topic, mentions) {
-  console.log(`📊 Analyzing sentiment for "${topic}"...`);
-
-  const positiveWords = [
-    "great",
-    "good",
-    "excellent",
-    "strong",
-    "positive",
-    "support",
-    "success",
-  ];
-  const negativeWords = [
-    "bad",
-    "poor",
-    "failed",
-    "weak",
-    "negative",
-    "crisis",
-    "disaster",
-  ];
-
-  const text = mentions.join(" ").toLowerCase();
-  const positive = positiveWords.filter((w) => text.includes(w)).length;
-  const negative = negativeWords.filter((w) => text.includes(w)).length;
-
-  const sentiment = (positive - negative) / (positive + negative || 1);
+  // Convert to final shape — only topics with 1+ tweets
+  const topics = Object.values(topicMap)
+    .map(t => {
+      const avgSentiment = t.sentiments.reduce((a, b) => a + b, 0) / t.sentiments.length;
+      const byRegion = {};
+      for (const [reg, rd] of Object.entries(t.byRegion)) {
+        if (reg === '_statewide') continue;
+        byRegion[reg] = {
+          sentiment: rd.sentiments.reduce((a, b) => a + b, 0) / rd.sentiments.length,
+          volume: rd.volume,
+        };
+      }
+      return {
+        name: t.name,
+        sentiment: Math.round(avgSentiment * 100) / 100,
+        volume: t.volumes,
+        byRegion,
+        topMentions: t.mentions,
+      };
+    })
+    .sort((a, b) => b.volume - a.volume);
 
   return {
-    sentiment: Math.max(-1, Math.min(1, sentiment)),
-    volume: mentions.length,
+    date,
+    source: 'twitter',
+    totalVolume: taggedTweets.length,
+    regions: REGION_LABELS,
+    topics,
   };
 }
 
-export { searchTwitterData, extractTopicsFromText, analyzeSentiment };
+// ── Public: fetch + process ──
+async function fetchTexasPulse() {
+  const twitterData = await searchTexasWide(100);
+
+  if (!twitterData || !twitterData.data || twitterData.data.length === 0) {
+    return null; // caller falls back to demo
+  }
+
+  const tagged = twitterData.data.map(t => tagTweet(t.text));
+  const date = new Date().toISOString().split('T')[0];
+  return buildTopicResponse(tagged, date);
+}
+
+export { fetchTexasPulse, TOPIC_SEEDS, TX_REGIONS, REGION_LABELS, tagTweet, buildTopicResponse };
