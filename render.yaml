@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: tx-sentiment-api
+    env: node
+    plan: free
+    buildCommand: cd backend && npm install
+    startCommand: npm start -w backend
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
