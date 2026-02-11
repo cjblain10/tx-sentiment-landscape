@@ -1,7 +1,8 @@
 // Real-time Texas sentiment — dynamic topic discovery + region tagging
 
 const COMPOSIO_API_KEY = process.env.COMPOSIO_API_KEY || 'ak_cdwQZVwTOel5YxPz9BgL';
-const COMPOSIO_BASE_URL = 'https://api.composio.dev/v1';
+const COMPOSIO_BASE_URL = 'https://backend.composio.dev/api/v2';
+const COMPOSIO_ENTITY_ID = process.env.COMPOSIO_ENTITY_ID || 'default';
 
 // ── Broad topic dictionary — only topics with actual matches surface ──
 const TOPIC_SEEDS = {
@@ -56,24 +57,36 @@ async function searchTexasWide(maxResults = 100) {
   console.log('📡 Searching Texas issues...');
 
   try {
-    const response = await fetch(`${COMPOSIO_BASE_URL}/actions/twitter/search_tweets`, {
+    const response = await fetch(`${COMPOSIO_BASE_URL}/actions/TWITTER_RECENT_SEARCH/execute`, {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${COMPOSIO_API_KEY}`, 'Content-Type': 'application/json' },
+      headers: { 'x-api-key': COMPOSIO_API_KEY, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        query,
-        max_results: Math.min(maxResults, 100),
-        tweet_fields: 'author_id,created_at,public_metrics',
+        input: {
+          query: query + ' lang:en',
+          max_results: Math.min(maxResults, 100),
+          tweet__fields: ['author_id', 'created_at', 'public_metrics'],
+        },
+        entityId: COMPOSIO_ENTITY_ID,
+        appName: 'twitter',
       }),
     });
 
     if (!response.ok) {
-      console.warn(`⚠️ Composio ${response.status}, trying fallback...`);
+      const errBody = await response.text().catch(() => '');
+      console.warn(`⚠️ Composio ${response.status}: ${errBody.substring(0, 200)}`);
       return await fallbackSearch(maxResults);
     }
 
-    const data = await response.json();
-    console.log(`✅ Got ${data.data?.length || 0} tweets`);
-    return data;
+    const result = await response.json();
+    if (!result.successful) {
+      console.warn(`⚠️ Composio not successful: ${result.error || 'unknown'}`);
+      return await fallbackSearch(maxResults);
+    }
+
+    // Composio wraps the Twitter response — extract tweets
+    const tweets = result.data?.data || result.data?.result?.data || [];
+    console.log(`✅ Got ${tweets.length} tweets via Composio`);
+    return { data: tweets.map(t => ({ text: t.text || t.full_text || '' })) };
   } catch (err) {
     console.error(`❌ Search error: ${err.message}`);
     return await fallbackSearch(maxResults);
