@@ -104,6 +104,34 @@ body {
   50% { opacity: 0.3; }
 }
 
+.live-dot.dim {
+  background: var(--text-muted);
+  animation: none;
+  opacity: 0.5;
+}
+
+/* ── STATUS BANNER ── */
+.status-banner {
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.03em;
+  padding: 0.5rem 1rem;
+  z-index: 99;
+}
+
+.status-banner.stale {
+  background: rgba(234, 179, 8, 0.1);
+  border-bottom: 1px solid rgba(234, 179, 8, 0.2);
+  color: #eab308;
+}
+
+.status-banner.demo {
+  background: rgba(100, 116, 139, 0.08);
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
 /* ── MAIN ── */
 .main {
   max-width: 960px;

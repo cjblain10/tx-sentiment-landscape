@@ -54,13 +54,19 @@ function App() {
   const [selectedRegion, setSelectedRegion] = useState(null); // null = statewide
   const [loading, setLoading] = useState(true);
   const [dataSource, setDataSource] = useState('demo');
+  const [staleInfo, setStaleInfo] = useState(null); // { cachedAt } if serving stale data
   const [entered, setEntered] = useState(false);
 
   useEffect(() => {
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
     fetch(`${apiUrl}/api/sentiment/today`)
       .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
-      .then(d => { setData(d); setDataSource(d.source || 'api'); setLoading(false); })
+      .then(d => {
+        setData(d);
+        setDataSource(d.source || 'api');
+        if (d.stale) setStaleInfo({ cachedAt: d.cachedAt });
+        setLoading(false);
+      })
       .catch(() => { setData(getDailySentimentData()); setDataSource('demo'); setLoading(false); });
   }, []);
 
@@ -103,10 +109,24 @@ function App() {
       <header className="header">
         <h1 className="logo">TX<span>Sentiment</span></h1>
         <div className="live-badge">
-          <span className="live-dot" />
-          {dataSource === 'twitter' ? 'LIVE' : 'DEMO'} &middot; {dateStr}
+          <span className={`live-dot ${dataSource !== 'twitter' ? 'dim' : ''}`} />
+          {dataSource === 'twitter' && !staleInfo ? 'LIVE' : staleInfo ? 'CACHED' : 'DEMO'} &middot; {dateStr}
         </div>
       </header>
+
+      {/* DATA STATUS BANNER */}
+      {(staleInfo || dataSource === 'demo') && (
+        <div className={`status-banner ${staleInfo ? 'stale' : 'demo'}`}>
+          {staleInfo ? (
+            <>
+              Live feed temporarily unavailable &middot; Showing cached data from{' '}
+              {new Date(staleInfo.cachedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+            </>
+          ) : (
+            <>Demo data &middot; Live Twitter feed not currently connected</>
+          )}
+        </div>
+      )}
 
       <main className="main">
         {/* HERO */}
