@@ -139,15 +139,22 @@ function App() {
       <Particles />
 
       <header className="header">
-        <h1 className="logo">
-          <span className="texas-icon">★</span>
-          <span>Lone Star Standard</span>
-          <span className="logo-divider">×</span>
-          <span className="logo-powered">LocalInsights.ai</span>
-        </h1>
-        <div className="live-badge">
-          <span className={`live-dot ${dataSource !== 'twitter' ? 'dim' : ''}`} />
-          {dataSource === 'twitter' && !staleInfo ? 'LIVE' : staleInfo ? 'CACHED' : 'DEMO'} &middot; {dateStr}
+        <div className="header-left">
+          <img
+            src="https://d263zunsorfp81.cloudfront.net/assets/federalnewswire/lonestarstandard/brand-4e742847ec78903fb56ed56fdc663fb894389e528eb02e8cc311750971c4cf3d.webp"
+            alt="Lone Star Standard"
+            className="lss-logo"
+          />
+        </div>
+        <div className="header-center">
+          <h1 className="site-title">THE TEXAS PULSE</h1>
+          <p className="site-subtitle">Real-time sentiment tracking powered by LocalInsights.ai</p>
+        </div>
+        <div className="header-right">
+          <div className="live-badge">
+            <span className={`live-dot ${dataSource !== 'twitter' ? 'dim' : ''}`} />
+            {dataSource === 'twitter' && !staleInfo ? 'LIVE' : staleInfo ? 'CACHED' : 'DEMO'} &middot; {dateStr}
+          </div>
         </div>
       </header>
 
@@ -166,154 +173,149 @@ function App() {
       )}
 
       <main className="main">
-        {/* HERO */}
-        <section className={`hero ${entered ? 'entered' : ''}`}>
-          <div className="hero-kicker">THE TEXAS PULSE</div>
-          <h2>How Texans Feel Right Now</h2>
-          <p>Real-time sentiment tracking across key Texas issues</p>
-        </section>
-
-        {/* LEAD SUMMARY */}
-        {data && (
-          <section className={`lead-summary ${entered ? 'entered' : ''}`}>
-            <div className="lead-summary-kicker">TODAY'S MOOD</div>
-            <p className="lead-summary-text">{generateSummary(data)}</p>
-            <div className="lead-summary-meta">
-              <div className="lead-summary-score">
-                <span>Overall Sentiment:</span>
-                <span className={`lead-score-value ${data.overallScore >= 0 ? 'pos' : 'neg'}`}>
+        {/* LAYOUT: CENTER VISUALIZATION + RIGHT SIDEBAR */}
+        <div className="content-wrapper">
+          {/* LEFT/CENTER: SENTIMENT VISUALIZATION */}
+          <div className="viz-area">
+            {/* OVERALL SCORE */}
+            {data && (
+              <div className={`overall-score ${entered ? 'entered' : ''}`}>
+                <div className="overall-label">Overall Texas Sentiment</div>
+                <div className={`overall-value ${data.overallScore >= 0 ? 'pos' : 'neg'}`}>
                   {data.overallScore >= 0 ? '+' : ''}{data.overallScore.toFixed(1)}
-                </span>
-                {data.scoreDelta !== undefined && data.scoreDelta !== 0 && (
-                  <span className={`lead-score-delta ${data.scoreDelta > 0 ? 'pos' : 'neg'}`}>
-                    {data.scoreDelta > 0 ? '▲' : '▼'}{Math.abs(data.scoreDelta).toFixed(1)}
-                  </span>
-                )}
-              </div>
-              <span>&middot;</span>
-              <span>Based on {totalVolume.toLocaleString()} mentions</span>
-              <span>&middot;</span>
-              <span>{dateStr}</span>
-            </div>
-          </section>
-        )}
-
-        {/* PRIMARY CATEGORIES */}
-        {data?.categories && data.categories.length > 0 && (
-          <section className={`categories ${entered ? 'entered' : ''}`}>
-            <h3 className="categories-title">Key Issues</h3>
-            <div className="categories-grid">
-              {data.categories.map((cat, idx) => {
-                const isPos = cat.sentiment >= 0;
-                return (
-                  <div
-                    key={cat.name}
-                    className={`category-card ${isPos ? 'pos' : 'neg'}`}
-                    style={{ '--delay': `${idx * 0.1}s` }}
-                  >
-                    <div className="category-header">
-                      <h4 className="category-name">{cat.name}</h4>
-                      {cat.delta !== undefined && cat.delta !== 0 && (
-                        <span className={`category-delta ${cat.delta > 0 ? 'pos' : 'neg'}`}>
-                          {cat.delta > 0 ? '▲' : '▼'}{Math.abs(cat.delta).toFixed(1)}
-                        </span>
-                      )}
-                    </div>
-                    <p className="category-statement">{getCategoryStatement(cat)}</p>
-                    <div className="category-score">
-                      <span className={`category-value ${isPos ? 'pos' : 'neg'}`}>
-                        {isPos ? '+' : ''}{cat.sentiment.toFixed(1)}
-                      </span>
-                      <span className="category-volume">
-                        {cat.volume.toLocaleString()} mentions
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        )}
-
-        {/* BIGGEST MOVERS */}
-        {data?.biggestMovers && data.biggestMovers.length > 0 && (
-          <section className={`movers ${entered ? 'entered' : ''}`}>
-            <h3 className="movers-title">Biggest Shifts Today</h3>
-            <div className="movers-list">
-              {data.biggestMovers.map((topic, idx) => {
-                const isPos = topic.sentiment >= 0;
-                const deltaIsPos = topic.delta > 0;
-                return (
-                  <div
-                    key={topic.name}
-                    className={`mover-row ${deltaIsPos ? 'pos-mover' : 'neg-mover'}`}
-                    style={{ '--delay': `${idx * 0.08}s` }}
-                  >
-                    <div className="mover-name">{capitalize(topic.name)}</div>
-                    <div className="mover-bars">
-                      <div className={`mover-sentiment ${isPos ? 'pos' : 'neg'}`}>
-                        {isPos ? '+' : ''}{topic.sentiment.toFixed(1)}
-                      </div>
-                      <div className={`mover-delta ${deltaIsPos ? 'pos' : 'neg'}`}>
-                        {deltaIsPos ? '▲' : '▼'}{Math.abs(topic.delta).toFixed(1)}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        )}
-
-        {/* REGION FILTER */}
-        <div className={`region-filter ${entered ? 'entered' : ''}`}>
-          <button
-            className={`region-chip ${!selectedRegion ? 'active' : ''}`}
-            onClick={() => { setSelectedRegion(null); setSelectedTopic(null); }}
-          >
-            All Texas
-          </button>
-          {Object.entries(regions).map(([id, label]) => (
-            <button
-              key={id}
-              className={`region-chip ${selectedRegion === id ? 'active' : ''}`}
-              onClick={() => { setSelectedRegion(id); setSelectedTopic(null); }}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-
-        {/* PULSE GRID */}
-        <div className="pulse-grid">
-          {topics.map((topic, idx) => {
-            const isPos = topic.sentiment >= 0;
-            const intensity = Math.min(Math.abs(topic.sentiment), 1);
-            const isSelected = selectedTopic?.name === topic.name;
-
-            return (
-              <button
-                key={topic.name}
-                className={`node ${isPos ? 'pos' : 'neg'} ${isSelected ? 'selected' : ''} ${entered ? 'entered' : ''}`}
-                style={{
-                  '--glow': isPos ? '16,185,129' : '239,68,68',
-                  '--intensity': intensity,
-                  '--delay': `${idx * 0.07}s`,
-                  '--pulse-dur': `${2.5 + (1 - intensity) * 2}s`,
-                }}
-                onClick={() => handleSelectTopic(topic.name)}
-              >
-                <div className="node-ring" />
-                <div className="node-inner">
-                  <span className="node-name">{capitalize(topic.name)}</span>
-                  <span className="node-score">
-                    {isPos ? '+' : ''}{topic.sentiment.toFixed(2)}
-                  </span>
-                  <span className="node-vol">{topic.volume.toLocaleString()} mentions</span>
                 </div>
+                {data.scoreDelta !== undefined && data.scoreDelta !== 0 && (
+                  <div className={`overall-delta ${data.scoreDelta > 0 ? 'pos' : 'neg'}`}>
+                    {data.scoreDelta > 0 ? '▲' : '▼'}{Math.abs(data.scoreDelta).toFixed(1)} from yesterday
+                  </div>
+                )}
+                <div className="overall-meta">
+                  Based on {totalVolume.toLocaleString()} mentions
+                </div>
+              </div>
+            )}
+
+            {/* REGION FILTER */}
+            <div className={`region-filter ${entered ? 'entered' : ''}`}>
+              <button
+                className={`region-chip ${!selectedRegion ? 'active' : ''}`}
+                onClick={() => { setSelectedRegion(null); setSelectedTopic(null); }}
+              >
+                All Texas
               </button>
-            );
-          })}
+              {Object.entries(regions).map(([id, label]) => (
+                <button
+                  key={id}
+                  className={`region-chip ${selectedRegion === id ? 'active' : ''}`}
+                  onClick={() => { setSelectedRegion(id); setSelectedTopic(null); }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {/* PULSE GRID - CIRCULAR SENTIMENT NODES */}
+            <div className="pulse-grid">
+              {topics.map((topic, idx) => {
+                const isPos = topic.sentiment >= 0;
+                const intensity = Math.min(Math.abs(topic.sentiment), 1);
+                const isSelected = selectedTopic?.name === topic.name;
+
+                return (
+                  <button
+                    key={topic.name}
+                    className={`node ${isPos ? 'pos' : 'neg'} ${isSelected ? 'selected' : ''} ${entered ? 'entered' : ''}`}
+                    style={{
+                      '--glow': isPos ? '16,185,129' : '239,68,68',
+                      '--intensity': intensity,
+                      '--delay': `${idx * 0.07}s`,
+                      '--pulse-dur': `${2.5 + (1 - intensity) * 2}s`,
+                    }}
+                    onClick={() => handleSelectTopic(topic.name)}
+                  >
+                    <div className="node-ring" />
+                    <div className="node-inner">
+                      <span className="node-name">{capitalize(topic.name)}</span>
+                      <span className="node-score">
+                        {isPos ? '+' : ''}{topic.sentiment.toFixed(2)}
+                      </span>
+                      <span className="node-vol">{topic.volume.toLocaleString()} mentions</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* RIGHT SIDEBAR: CONTEXT BOXES */}
+          <div className="sidebar">
+            {/* TODAY'S MOOD SUMMARY */}
+            {data && (
+              <div className={`context-box mood-box ${entered ? 'entered' : ''}`}>
+                <h3 className="context-title">Today's Mood</h3>
+                <p className="context-text">{generateSummary(data)}</p>
+              </div>
+            )}
+
+            {/* KEY ISSUES */}
+            {data?.categories && data.categories.length > 0 && (
+              <div className={`context-box categories-box ${entered ? 'entered' : ''}`}>
+                <h3 className="context-title">Key Issues</h3>
+                <div className="context-list">
+                  {data.categories.map((cat, idx) => {
+                    const isPos = cat.sentiment >= 0;
+                    return (
+                      <div key={cat.name} className="context-item" style={{ '--delay': `${idx * 0.1}s` }}>
+                        <div className="context-item-header">
+                          <span className="context-item-name">{cat.name}</span>
+                          {cat.delta !== undefined && cat.delta !== 0 && (
+                            <span className={`context-item-delta ${cat.delta > 0 ? 'pos' : 'neg'}`}>
+                              {cat.delta > 0 ? '▲' : '▼'}{Math.abs(cat.delta).toFixed(1)}
+                            </span>
+                          )}
+                        </div>
+                        <div className={`context-item-score ${isPos ? 'pos' : 'neg'}`}>
+                          {isPos ? '+' : ''}{cat.sentiment.toFixed(1)}
+                        </div>
+                        <div className="context-item-meta">
+                          {cat.volume.toLocaleString()} mentions
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* BIGGEST SHIFTS */}
+            {data?.biggestMovers && data.biggestMovers.length > 0 && (
+              <div className={`context-box movers-box ${entered ? 'entered' : ''}`}>
+                <h3 className="context-title">Biggest Shifts Today</h3>
+                <div className="context-list">
+                  {data.biggestMovers.map((topic, idx) => {
+                    const isPos = topic.sentiment >= 0;
+                    const deltaIsPos = topic.delta > 0;
+                    return (
+                      <div key={topic.name} className="context-item" style={{ '--delay': `${idx * 0.08}s` }}>
+                        <div className="context-item-header">
+                          <span className="context-item-name">{capitalize(topic.name)}</span>
+                          <span className={`context-item-delta ${deltaIsPos ? 'pos' : 'neg'}`}>
+                            {deltaIsPos ? '▲' : '▼'}{Math.abs(topic.delta).toFixed(1)}
+                          </span>
+                        </div>
+                        <div className={`context-item-score ${isPos ? 'pos' : 'neg'}`}>
+                          {isPos ? '+' : ''}{topic.sentiment.toFixed(1)}
+                        </div>
+                        <div className="context-item-meta">
+                          {topic.volume.toLocaleString()} mentions
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* DETAIL PANEL */}
