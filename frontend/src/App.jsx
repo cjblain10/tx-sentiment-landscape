@@ -145,10 +145,12 @@ function App() {
             alt="Lone Star Standard"
             className="lss-logo"
           />
+          <span className="logo-divider">×</span>
+          <span className="logo-powered">LocalInsights.ai</span>
         </div>
         <div className="header-center">
           <h1 className="site-title">THE TEXAS PULSE</h1>
-          <p className="site-subtitle">Real-time sentiment tracking powered by LocalInsights.ai</p>
+          <p className="site-subtitle">Real-time sentiment tracking</p>
         </div>
         <div className="header-right">
           <div className="live-badge">
