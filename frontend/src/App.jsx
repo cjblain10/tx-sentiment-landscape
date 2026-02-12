@@ -107,7 +107,7 @@ function App() {
       <Particles />
 
       <header className="header">
-        <h1 className="logo">TX<span>Sentiment</span></h1>
+        <h1 className="logo">Lone Star Standard <span>× LocalInsights.ai</span></h1>
         <div className="live-badge">
           <span className={`live-dot ${dataSource !== 'twitter' ? 'dim' : ''}`} />
           {dataSource === 'twitter' && !staleInfo ? 'LIVE' : staleInfo ? 'CACHED' : 'DEMO'} &middot; {dateStr}
@@ -347,7 +347,9 @@ function App() {
           {dataSource === 'twitter' ? 'Twitter/X via Composio' : 'Demo data'}
           &nbsp;&middot;&nbsp;Dynamic topic discovery&nbsp;&middot;&nbsp;Updated daily
         </span>
-        <span>Powered by LocalInsights.ai</span>
+        <span>
+          A <a href="https://lonestarstandard.com" target="_blank" rel="noopener">Lone Star Standard</a> project powered by <a href="https://localinsights.ai" target="_blank" rel="noopener">LocalInsights.ai</a>
+        </span>
       </footer>
     </div>
   );
