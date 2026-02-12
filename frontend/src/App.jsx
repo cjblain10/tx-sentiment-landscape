@@ -131,9 +131,93 @@ function App() {
       <main className="main">
         {/* HERO */}
         <section className={`hero ${entered ? 'entered' : ''}`}>
-          <h2>How Texas Feels<br />Right Now</h2>
+          <h2>How Texans Feel<br />Right Now</h2>
+
+          {/* OVERALL SENTIMENT SCORE */}
+          {data?.overallScore !== undefined && (
+            <div className="overall-score">
+              <div className="overall-score-label">Overall Sentiment</div>
+              <div className="overall-score-main">
+                <span className={`overall-score-value ${data.overallScore >= 0 ? 'pos' : 'neg'}`}>
+                  {data.overallScore >= 0 ? '+' : ''}{data.overallScore.toFixed(1)}
+                </span>
+                {data.scoreDelta !== undefined && data.scoreDelta !== 0 && (
+                  <span className={`overall-score-delta ${data.scoreDelta > 0 ? 'pos' : 'neg'}`}>
+                    {data.scoreDelta > 0 ? '▲' : '▼'}{Math.abs(data.scoreDelta).toFixed(1)}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
           <p>{topics.length} active topics &middot; {totalVolume.toLocaleString()} mentions tracked</p>
         </section>
+
+        {/* PRIMARY CATEGORIES */}
+        {data?.categories && data.categories.length > 0 && (
+          <section className={`categories ${entered ? 'entered' : ''}`}>
+            <h3 className="categories-title">Key Issues</h3>
+            <div className="categories-grid">
+              {data.categories.map((cat, idx) => {
+                const isPos = cat.sentiment >= 0;
+                return (
+                  <div
+                    key={cat.name}
+                    className={`category-card ${isPos ? 'pos' : 'neg'}`}
+                    style={{ '--delay': `${idx * 0.1}s` }}
+                  >
+                    <div className="category-header">
+                      <span className="category-name">{cat.name}</span>
+                      {cat.delta !== undefined && cat.delta !== 0 && (
+                        <span className={`category-delta ${cat.delta > 0 ? 'pos' : 'neg'}`}>
+                          {cat.delta > 0 ? '▲' : '▼'}{Math.abs(cat.delta).toFixed(1)}
+                        </span>
+                      )}
+                    </div>
+                    <div className="category-score">
+                      <span className={`category-value ${isPos ? 'pos' : 'neg'}`}>
+                        {isPos ? '+' : ''}{cat.sentiment.toFixed(1)}
+                      </span>
+                    </div>
+                    <div className="category-volume">
+                      {cat.volume.toLocaleString()} mentions
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* BIGGEST MOVERS */}
+        {data?.biggestMovers && data.biggestMovers.length > 0 && (
+          <section className={`movers ${entered ? 'entered' : ''}`}>
+            <h3 className="movers-title">Biggest Movers Today</h3>
+            <div className="movers-list">
+              {data.biggestMovers.map((topic, idx) => {
+                const isPos = topic.sentiment >= 0;
+                const deltaIsPos = topic.delta > 0;
+                return (
+                  <div
+                    key={topic.name}
+                    className="mover-row"
+                    style={{ '--delay': `${idx * 0.08}s` }}
+                  >
+                    <div className="mover-name">{capitalize(topic.name)}</div>
+                    <div className="mover-bars">
+                      <div className={`mover-sentiment ${isPos ? 'pos' : 'neg'}`}>
+                        {isPos ? '+' : ''}{topic.sentiment.toFixed(2)}
+                      </div>
+                      <div className={`mover-delta ${deltaIsPos ? 'pos' : 'neg'}`}>
+                        {deltaIsPos ? '▲' : '▼'}{Math.abs(topic.delta).toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         {/* REGION FILTER */}
         <div className={`region-filter ${entered ? 'entered' : ''}`}>

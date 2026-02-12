@@ -19,6 +19,20 @@ const ALL_TOPICS = [
   'transportation', 'tech & innovation',
 ];
 
+// Predetermined primary categories for Michael Searle
+const PRIMARY_CATEGORIES = {
+  'Cost of Living': ['housing', 'property tax'],
+  'Economy': ['economy & jobs', 'tech & innovation', 'transportation'],
+  'Health Care': ['healthcare'],
+  'Education': ['education'],
+};
+
+// Additional tracked topics (for trending/biggest movers)
+const SECONDARY_TOPICS = [
+  'border security', 'energy & grid', 'abortion', 'gun policy',
+  'water & drought', 'crime & safety', 'elections',
+];
+
 const SAMPLE_MENTIONS = {
   'border security': [
     'Texas border crossings hit new daily record amid federal policy debate',
@@ -113,6 +127,14 @@ function genVolume(name, dayOffset) {
   return Math.floor(40 + seededRandom(s) * 260);
 }
 
+function calculateOverallScore(topics) {
+  if (topics.length === 0) return 0;
+  const totalWeight = topics.reduce((sum, t) => sum + t.volume, 0);
+  if (totalWeight === 0) return 0;
+  const weightedSum = topics.reduce((sum, t) => sum + (t.sentiment * t.volume), 0);
+  return Math.round((weightedSum / totalWeight) * 100) / 100;
+}
+
 export function getDailySentimentData() {
   const today = new Date();
   const dayOffset = Math.floor((today - new Date(2026, 0, 1)) / (1000 * 60 * 60 * 24));
@@ -144,10 +166,77 @@ export function getDailySentimentData() {
     return { name, sentiment, volume, byRegion, topMentions: mentions };
   }).sort((a, b) => b.volume - a.volume);
 
+  // Calculate overall sentiment score
+  const overallScore = calculateOverallScore(topics);
+
+  // Calculate yesterday's score for delta
+  const yesterdayOffset = dayOffset - 1;
+  const yesterdayActiveCount = 6 + Math.floor(seededRandom(seed('active', yesterdayOffset)) * 5);
+  const yesterdayShuffled = ALL_TOPICS.slice().sort((a, b) => seed(a, yesterdayOffset) - seed(b, yesterdayOffset));
+  const yesterdayTopics = yesterdayShuffled.slice(0, yesterdayActiveCount).map(name => ({
+    sentiment: genSentiment(name, yesterdayOffset),
+    volume: genVolume(name, yesterdayOffset),
+  }));
+  const yesterdayScore = calculateOverallScore(yesterdayTopics);
+  const scoreDelta = Math.round((overallScore - yesterdayScore) * 100) / 100;
+
+  // Calculate category-level scores
+  const categories = Object.entries(PRIMARY_CATEGORIES).map(([categoryName, categoryTopics]) => {
+    const categoryData = topics.filter(t => categoryTopics.includes(t.name));
+
+    if (categoryData.length === 0) {
+      // Generate synthetic data for category if no matching topics active
+      const catSentiment = genSentiment(categoryName, dayOffset);
+      const catVolume = genVolume(categoryName, dayOffset);
+      return {
+        name: categoryName,
+        sentiment: catSentiment,
+        volume: catVolume,
+        topics: categoryTopics,
+      };
+    }
+
+    const sentiment = calculateOverallScore(categoryData);
+    const volume = categoryData.reduce((sum, t) => sum + t.volume, 0);
+
+    // Calculate yesterday's category score for trend
+    const yesterdayCategoryData = categoryTopics.map(name => ({
+      sentiment: genSentiment(name, yesterdayOffset),
+      volume: genVolume(name, yesterdayOffset),
+    }));
+    const yesterdayCatScore = calculateOverallScore(yesterdayCategoryData);
+    const categoryDelta = Math.round((sentiment - yesterdayCatScore) * 100) / 100;
+
+    return {
+      name: categoryName,
+      sentiment,
+      volume,
+      delta: categoryDelta,
+      topics: categoryTopics,
+    };
+  });
+
+  // Calculate biggest movers (topics with largest sentiment swings)
+  const topicsWithDeltas = topics.map(topic => {
+    const yesterdaySentiment = genSentiment(topic.name, yesterdayOffset);
+    const delta = Math.round((topic.sentiment - yesterdaySentiment) * 100) / 100;
+    return { ...topic, delta };
+  });
+
+  // Get top 5 biggest movers (by absolute delta value)
+  const biggestMovers = topicsWithDeltas
+    .slice()
+    .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
+    .slice(0, 5);
+
   return {
     date: today.toISOString().split('T')[0],
     source: 'demo',
     totalVolume: topics.reduce((s, t) => s + t.volume, 0),
+    overallScore,
+    scoreDelta,
+    categories,
+    biggestMovers,
     regions: REGION_LABELS,
     topics,
   };
