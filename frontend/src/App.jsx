@@ -5,6 +5,38 @@ import './App.css';
 
 function capitalize(s) { return s.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '); }
 
+// Generate narrative summary from data
+function generateSummary(data) {
+  if (!data || !data.categories) return '';
+
+  const categories = data.categories;
+  const mostPositive = [...categories].sort((a, b) => b.sentiment - a.sentiment)[0];
+  const mostNegative = [...categories].sort((a, b) => a.sentiment - b.sentiment)[0];
+
+  const tone = data.overallScore >= 0.3 ? 'optimistic' :
+                data.overallScore <= -0.3 ? 'pessimistic' :
+                'mixed';
+
+  const toneWords = {
+    optimistic: 'Texans remain cautiously optimistic',
+    pessimistic: 'Texans express growing concerns',
+    mixed: 'Texans show mixed feelings'
+  };
+
+  return `${toneWords[tone]} as ${mostPositive.name.toLowerCase()} sentiment rises (${mostPositive.sentiment >= 0 ? '+' : ''}${mostPositive.sentiment.toFixed(1)}) while ${mostNegative.name.toLowerCase()} concerns ${mostNegative.sentiment < 0 ? 'deepen' : 'ease'} (${mostNegative.sentiment >= 0 ? '+' : ''}${mostNegative.sentiment.toFixed(1)}) across the state this week.`;
+}
+
+// Generate contextual statement for category
+function getCategoryStatement(category) {
+  const sentiment = category.sentiment;
+  const name = category.name.toLowerCase();
+
+  if (sentiment >= 0.3) return `Texans express growing optimism about ${name}`;
+  if (sentiment >= 0) return `Sentiment on ${name} remains cautiously positive`;
+  if (sentiment >= -0.3) return `Texans show concerns about ${name}`;
+  return `Growing pessimism about ${name} across the state`;
+}
+
 /* ── Floating Particles ── */
 function Particles({ count = 60 }) {
   const ref = useRef(null);
@@ -107,7 +139,12 @@ function App() {
       <Particles />
 
       <header className="header">
-        <h1 className="logo">Lone Star Standard <span>× LocalInsights.ai</span></h1>
+        <h1 className="logo">
+          <span className="texas-icon">★</span>
+          <span>Lone Star Standard</span>
+          <span className="logo-divider">×</span>
+          <span className="logo-powered">LocalInsights.ai</span>
+        </h1>
         <div className="live-badge">
           <span className={`live-dot ${dataSource !== 'twitter' ? 'dim' : ''}`} />
           {dataSource === 'twitter' && !staleInfo ? 'LIVE' : staleInfo ? 'CACHED' : 'DEMO'} &middot; {dateStr}
@@ -131,27 +168,35 @@ function App() {
       <main className="main">
         {/* HERO */}
         <section className={`hero ${entered ? 'entered' : ''}`}>
-          <h2>How Texans Feel<br />Right Now</h2>
+          <div className="hero-kicker">THE TEXAS PULSE</div>
+          <h2>How Texans Feel Right Now</h2>
+          <p>Real-time sentiment tracking across key Texas issues</p>
+        </section>
 
-          {/* OVERALL SENTIMENT SCORE */}
-          {data?.overallScore !== undefined && (
-            <div className="overall-score">
-              <div className="overall-score-label">Overall Sentiment</div>
-              <div className="overall-score-main">
-                <span className={`overall-score-value ${data.overallScore >= 0 ? 'pos' : 'neg'}`}>
+        {/* LEAD SUMMARY */}
+        {data && (
+          <section className={`lead-summary ${entered ? 'entered' : ''}`}>
+            <div className="lead-summary-kicker">TODAY'S MOOD</div>
+            <p className="lead-summary-text">{generateSummary(data)}</p>
+            <div className="lead-summary-meta">
+              <div className="lead-summary-score">
+                <span>Overall Sentiment:</span>
+                <span className={`lead-score-value ${data.overallScore >= 0 ? 'pos' : 'neg'}`}>
                   {data.overallScore >= 0 ? '+' : ''}{data.overallScore.toFixed(1)}
                 </span>
                 {data.scoreDelta !== undefined && data.scoreDelta !== 0 && (
-                  <span className={`overall-score-delta ${data.scoreDelta > 0 ? 'pos' : 'neg'}`}>
+                  <span className={`lead-score-delta ${data.scoreDelta > 0 ? 'pos' : 'neg'}`}>
                     {data.scoreDelta > 0 ? '▲' : '▼'}{Math.abs(data.scoreDelta).toFixed(1)}
                   </span>
                 )}
               </div>
+              <span>&middot;</span>
+              <span>Based on {totalVolume.toLocaleString()} mentions</span>
+              <span>&middot;</span>
+              <span>{dateStr}</span>
             </div>
-          )}
-
-          <p>{topics.length} active topics &middot; {totalVolume.toLocaleString()} mentions tracked</p>
-        </section>
+          </section>
+        )}
 
         {/* PRIMARY CATEGORIES */}
         {data?.categories && data.categories.length > 0 && (
@@ -167,20 +212,21 @@ function App() {
                     style={{ '--delay': `${idx * 0.1}s` }}
                   >
                     <div className="category-header">
-                      <span className="category-name">{cat.name}</span>
+                      <h4 className="category-name">{cat.name}</h4>
                       {cat.delta !== undefined && cat.delta !== 0 && (
                         <span className={`category-delta ${cat.delta > 0 ? 'pos' : 'neg'}`}>
                           {cat.delta > 0 ? '▲' : '▼'}{Math.abs(cat.delta).toFixed(1)}
                         </span>
                       )}
                     </div>
+                    <p className="category-statement">{getCategoryStatement(cat)}</p>
                     <div className="category-score">
                       <span className={`category-value ${isPos ? 'pos' : 'neg'}`}>
                         {isPos ? '+' : ''}{cat.sentiment.toFixed(1)}
                       </span>
-                    </div>
-                    <div className="category-volume">
-                      {cat.volume.toLocaleString()} mentions
+                      <span className="category-volume">
+                        {cat.volume.toLocaleString()} mentions
+                      </span>
                     </div>
                   </div>
                 );
@@ -192,7 +238,7 @@ function App() {
         {/* BIGGEST MOVERS */}
         {data?.biggestMovers && data.biggestMovers.length > 0 && (
           <section className={`movers ${entered ? 'entered' : ''}`}>
-            <h3 className="movers-title">Biggest Movers Today</h3>
+            <h3 className="movers-title">Biggest Shifts Today</h3>
             <div className="movers-list">
               {data.biggestMovers.map((topic, idx) => {
                 const isPos = topic.sentiment >= 0;
@@ -200,16 +246,16 @@ function App() {
                 return (
                   <div
                     key={topic.name}
-                    className="mover-row"
+                    className={`mover-row ${deltaIsPos ? 'pos-mover' : 'neg-mover'}`}
                     style={{ '--delay': `${idx * 0.08}s` }}
                   >
                     <div className="mover-name">{capitalize(topic.name)}</div>
                     <div className="mover-bars">
                       <div className={`mover-sentiment ${isPos ? 'pos' : 'neg'}`}>
-                        {isPos ? '+' : ''}{topic.sentiment.toFixed(2)}
+                        {isPos ? '+' : ''}{topic.sentiment.toFixed(1)}
                       </div>
                       <div className={`mover-delta ${deltaIsPos ? 'pos' : 'neg'}`}>
-                        {deltaIsPos ? '▲' : '▼'}{Math.abs(topic.delta).toFixed(2)}
+                        {deltaIsPos ? '▲' : '▼'}{Math.abs(topic.delta).toFixed(1)}
                       </div>
                     </div>
                   </div>
