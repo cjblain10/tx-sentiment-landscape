@@ -10,63 +10,77 @@
 
   const styles = `
     .tx-sentiment-widget {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-family: Georgia, 'Times New Roman', serif;
       max-width: 600px;
       margin: 0 auto;
       padding: 1.5rem;
-      background: #0a0e1a;
-      color: #f1f5f9;
-      border-radius: 16px;
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: #ffffff;
+      color: #1a1a1a;
+      border-radius: 8px;
+      border: 2px solid #2c5282;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
     }
 
     .tx-sentiment-widget.light {
       background: #ffffff;
       color: #1a1a1a;
-      border-color: #e2e8f0;
+      border-color: #2c5282;
     }
 
     .tx-widget-header {
       text-align: center;
       margin-bottom: 1.5rem;
       padding-bottom: 1rem;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      border-bottom: 2px solid #2c5282;
     }
 
     .light .tx-widget-header {
-      border-bottom-color: #e2e8f0;
+      border-bottom-color: #2c5282;
+    }
+
+    .tx-widget-brand {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #2c5282;
+      margin-bottom: 0.5rem;
     }
 
     .tx-widget-title {
-      font-size: 1.4rem;
+      font-size: 1.5rem;
       font-weight: 700;
       margin-bottom: 0.75rem;
+      color: #1a202c;
     }
 
     .tx-overall-score {
       font-size: 3rem;
       font-weight: 700;
-      font-family: 'Courier New', monospace;
+      font-family: Georgia, 'Times New Roman', serif;
     }
 
-    .tx-overall-score.pos { color: #10b981; }
-    .tx-overall-score.neg { color: #ef4444; }
+    .tx-overall-score.pos { color: #2f855a; }
+    .tx-overall-score.neg { color: #c53030; }
 
     .tx-delta {
       display: inline-block;
       margin-left: 0.75rem;
       font-size: 1rem;
       padding: 0.25rem 0.5rem;
-      border-radius: 6px;
-      background: rgba(255, 255, 255, 0.05);
+      border-radius: 4px;
+      background: #f7fafc;
+      border: 1px solid #e2e8f0;
     }
 
     .light .tx-delta {
-      background: #f1f5f9;
+      background: #f7fafc;
+      border-color: #e2e8f0;
     }
 
-    .tx-delta.pos { color: #10b981; }
-    .tx-delta.neg { color: #ef4444; }
+    .tx-delta.pos { color: #2f855a; }
+    .tx-delta.neg { color: #c53030; }
 
     .tx-categories {
       display: grid;
@@ -76,43 +90,51 @@
     }
 
     .tx-category {
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid rgba(255, 255, 255, 0.06);
-      border-radius: 12px;
+      background: #f7fafc;
+      border: 1px solid #cbd5e0;
+      border-radius: 6px;
       padding: 0.9rem;
       text-align: center;
+      transition: all 0.2s ease;
+    }
+
+    .tx-category:hover {
+      background: #edf2f7;
+      border-color: #2c5282;
     }
 
     .light .tx-category {
-      background: #f8fafc;
-      border-color: #e2e8f0;
+      background: #f7fafc;
+      border-color: #cbd5e0;
     }
 
     .tx-category-name {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       font-size: 0.7rem;
-      font-weight: 600;
+      font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.05em;
-      color: #94a3b8;
+      color: #4a5568;
       margin-bottom: 0.5rem;
     }
 
     .tx-category-score {
       font-size: 1.4rem;
       font-weight: 700;
-      font-family: 'Courier New', monospace;
+      font-family: Georgia, 'Times New Roman', serif;
     }
 
-    .tx-category-score.pos { color: #10b981; }
-    .tx-category-score.neg { color: #ef4444; }
+    .tx-category-score.pos { color: #2f855a; }
+    .tx-category-score.neg { color: #c53030; }
 
     .tx-widget-footer {
       text-align: center;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       font-size: 0.7rem;
-      color: #64748b;
+      color: #718096;
       margin-top: 1rem;
       padding-top: 1rem;
-      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      border-top: 1px solid #e2e8f0;
     }
 
     .light .tx-widget-footer {
@@ -120,8 +142,9 @@
     }
 
     .tx-widget-footer a {
-      color: #C4553A;
+      color: #2c5282;
       text-decoration: none;
+      font-weight: 600;
     }
 
     .tx-widget-footer a:hover {
@@ -178,6 +201,7 @@
     container.className = `tx-sentiment-widget ${theme} ${compact ? 'compact' : ''}`;
     container.innerHTML = `
       <div class="tx-widget-header">
+        <div class="tx-widget-brand">Lone Star Standard × LocalInsights.ai</div>
         <div class="tx-widget-title">How Texans Feel Right Now</div>
         <div>
           <span class="tx-overall-score ${scoreClass}">
@@ -203,7 +227,7 @@
       </div>
 
       <div class="tx-widget-footer">
-        Powered by <a href="https://sentiment.localinsights.ai" target="_blank">LocalInsights.ai</a>
+        A <a href="https://lonestarstandard.com" target="_blank">Lone Star Standard</a> project powered by <a href="https://sentiment.localinsights.ai" target="_blank">LocalInsights.ai</a>
       </div>
     `;
   }

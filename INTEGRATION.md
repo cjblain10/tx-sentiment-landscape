@@ -1,6 +1,7 @@
 # TX Sentiment Tracker - Integration Guide
+## Lone Star Standard × LocalInsights.ai
 
-This document provides multiple options for integrating the TX Sentiment Tracker into external websites.
+This document provides multiple options for integrating the TX Sentiment Tracker into the Lone Star Standard website.
 
 ## Option 1: Iframe Embed (Simplest)
 
@@ -166,13 +167,18 @@ function App() {
 
 ---
 
-## Recommended Approach for Searle Strategies Site
+## Recommended Approach for Lone Star Standard
 
-**If WordPress/static HTML:** Use Option 1 (iframe) or Option 2 (JavaScript widget)
+**Best option:** Use Option 1 (iframe embed) or Option 2 (JavaScript widget)
 
-**If custom React/Next.js:** Use Option 4 (React component) or Option 3 (API)
+Both options have been styled to match Lone Star Standard's brand:
+- Clean, professional news aesthetic
+- Blue accent colors (#2c5282)
+- Traditional serif typography (Georgia)
+- Light background with subtle borders
+- "Lone Star Standard × LocalInsights.ai" branding
 
-**If need full control:** Use Option 3 (API endpoint) and build custom UI matching your site's design system
+**If custom design needed:** Use Option 3 (API endpoint) to fetch data and build a fully custom UI
 
 ---
 
