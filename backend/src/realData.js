@@ -195,16 +195,26 @@ function buildTopicResponse(taggedTweets, date) {
 }
 
 // ── Public: fetch + process ──
-async function fetchTexasPulse() {
-  const twitterData = await searchTexasWide(100);
+import { collectRedditPosts, transformToSentimentData } from './collectors/reddit.js';
 
-  if (!twitterData || !twitterData.data || twitterData.data.length === 0) {
+async function fetchTexasPulse() {
+  try {
+    console.log('📡 Collecting from Reddit...');
+    const redditPosts = await collectRedditPosts();
+
+    if (!redditPosts || redditPosts.length === 0) {
+      console.log('⚠️ No Reddit posts collected');
+      return null; // caller falls back to demo
+    }
+
+    console.log(`✅ Collected ${redditPosts.length} Reddit posts, transforming to sentiment data...`);
+    const sentimentData = transformToSentimentData(redditPosts);
+
+    return sentimentData;
+  } catch (error) {
+    console.error('❌ Error fetching Reddit data:', error.message);
     return null; // caller falls back to demo
   }
-
-  const tagged = twitterData.data.map(t => tagTweet(t.text));
-  const date = new Date().toISOString().split('T')[0];
-  return buildTopicResponse(tagged, date);
 }
 
 export { fetchTexasPulse, TOPIC_SEEDS, TX_REGIONS, REGION_LABELS, tagTweet, buildTopicResponse };
