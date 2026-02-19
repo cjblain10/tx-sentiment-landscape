@@ -17,6 +17,7 @@ const SEARCH_QUERIES = [
   'Texas economy jobs',
   'Texas crime fentanyl cartel',
   'Texas legislature session',
+  'Texas Scorecard',
 ];
 
 const DELAY_MS = 300;

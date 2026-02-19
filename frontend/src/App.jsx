@@ -143,7 +143,7 @@ function App() {
       <div className="loading">
         <div className="loading-text" style={{ color: '#ef4444' }}>Data sources temporarily unavailable</div>
         <div className="loading-text" style={{ fontSize: '0.85rem', marginTop: '0.5rem', opacity: 0.6 }}>
-          Reddit, Bluesky, and news feeds are retrying. Check back shortly.
+          Reddit, Bluesky, YouTube, and news feeds are retrying. Check back shortly.
         </div>
       </div>
     );
@@ -409,7 +409,7 @@ function App() {
 
       <footer className="footer">
         <span>
-          {staleInfo ? 'Cached data' : 'Reddit · Bluesky · Texas news feeds'}
+          {staleInfo ? 'Cached data' : 'Reddit · Bluesky · Mastodon · YouTube · Texas news · Google Trends'}
           &nbsp;&middot;&nbsp;Dynamic topic discovery&nbsp;&middot;&nbsp;Updated daily
         </span>
         <span>

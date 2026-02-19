@@ -1,9 +1,12 @@
-import { collectRedditPosts }    from './collectors/reddit.js';
-import { collectBlueSkyPosts }   from './collectors/bluesky.js';
-import { collectNewsArticles }   from './collectors/news.js';
-import { collectMastodonPosts }  from './collectors/mastodon.js';
-import { collectYouTubeVideos }  from './collectors/youtube.js';
-import { buildResponse }         from './collectors/shared.js';
+import { collectRedditPosts }       from './collectors/reddit.js';
+import { collectBlueSkyPosts }      from './collectors/bluesky.js';
+import { collectNewsArticles }      from './collectors/news.js';
+import { collectMastodonPosts }     from './collectors/mastodon.js';
+import { collectYouTubeVideos }     from './collectors/youtube.js';
+import { collectTruthSocialPosts }  from './collectors/truthsocial.js';
+import { collectGoogleTrends }      from './collectors/trends.js';
+import { collectThreadsPosts }      from './collectors/threads.js';
+import { buildResponse }            from './collectors/shared.js';
 
 export async function fetchTexasPulse() {
   console.log('🔄 Starting multi-source collection...');
@@ -14,19 +17,42 @@ export async function fetchTexasPulse() {
     collectNewsArticles(),
     collectMastodonPosts(),
     collectYouTubeVideos(),
+    collectTruthSocialPosts(),
+    collectGoogleTrends(),
+    collectThreadsPosts(),
   ]);
 
-  const [redditPosts, bskyPosts, newsPosts, mastodonPosts, youtubePosts] =
-    results.map(r => (r.status === 'fulfilled' ? r.value : []));
+  const [
+    redditPosts,
+    bskyPosts,
+    newsPosts,
+    mastodonPosts,
+    youtubePosts,
+    truthPosts,
+    trendPosts,
+    threadsPosts,
+  ] = results.map(r => (r.status === 'fulfilled' ? r.value : []));
 
-  const all = [...redditPosts, ...bskyPosts, ...newsPosts, ...mastodonPosts, ...youtubePosts];
+  const all = [
+    ...redditPosts,
+    ...bskyPosts,
+    ...newsPosts,
+    ...mastodonPosts,
+    ...youtubePosts,
+    ...truthPosts,
+    ...trendPosts,
+    ...threadsPosts,
+  ];
 
   const counts = {
-    reddit:   redditPosts.length,
-    bluesky:  bskyPosts.length,
-    news:     newsPosts.length,
-    mastodon: mastodonPosts.length,
-    youtube:  youtubePosts.length,
+    reddit:          redditPosts.length,
+    bluesky:         bskyPosts.length,
+    news:            newsPosts.length,
+    mastodon:        mastodonPosts.length,
+    youtube:         youtubePosts.length,
+    conservativenews: truthPosts.length,
+    trends:          trendPosts.length,
+    localnews:       threadsPosts.length,
   };
 
   console.log(
