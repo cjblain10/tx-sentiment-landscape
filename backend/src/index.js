@@ -5,18 +5,23 @@ import { fetchTexasPulse } from './realData.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const CACHE_PATH = '/tmp/tx-pulse-cache.json';
+const CACHE_PATH   = '/tmp/tx-pulse-cache.json';
+const HISTORY_PATH = '/tmp/tx-pulse-history.json';
 
 // How often to re-collect from all sources (milliseconds)
-// Default: 1 hour. Override with REFRESH_INTERVAL_MS env var.
-const REFRESH_INTERVAL_MS = parseInt(process.env.REFRESH_INTERVAL_MS || '') || 60 * 60 * 1000;
+// Default: 2 hours. Override with REFRESH_INTERVAL_MS env var.
+const REFRESH_INTERVAL_MS = parseInt(process.env.REFRESH_INTERVAL_MS || '') || 2 * 60 * 60 * 1000;
+
+// Keep up to 7 days of snapshots (12 runs/day × 7 = 84 max)
+const MAX_HISTORY = 84;
 
 app.use(cors());
 app.use(express.json());
 
 // ── Cache: in-memory + file backup ──
 let pulseCache = null;
-let isCollecting = false;  // guard against concurrent collection runs
+let pulseHistory = [];   // rolling array of snapshots
+let isCollecting = false;
 
 function loadCache() {
   try {
@@ -30,12 +35,44 @@ function loadCache() {
   }
 }
 
+function loadHistory() {
+  try {
+    if (fs.existsSync(HISTORY_PATH)) {
+      const raw = fs.readFileSync(HISTORY_PATH, 'utf-8');
+      pulseHistory = JSON.parse(raw);
+      console.log(`📈 History loaded — ${pulseHistory.length} snapshots`);
+    }
+  } catch (e) {
+    console.warn('⚠️ Could not load history:', e.message);
+  }
+}
+
 function saveCache(data) {
   pulseCache = { data, cachedAt: new Date().toISOString() };
   try {
     fs.writeFileSync(CACHE_PATH, JSON.stringify(pulseCache));
   } catch (e) {
     console.warn('⚠️ Could not write cache:', e.message);
+  }
+}
+
+function appendHistory(data) {
+  const snapshot = {
+    date:        new Date().toISOString(),
+    overallScore: data.overallScore,
+    totalVolume:  data.totalVolume,
+    source:       data.source,
+    categories:   data.categories.map(c => ({ name: c.name, sentiment: c.sentiment, volume: c.volume })),
+    topics:       data.topics.slice(0, 20).map(t => ({ name: t.name, sentiment: t.sentiment, volume: t.volume })),
+  };
+  pulseHistory.push(snapshot);
+  if (pulseHistory.length > MAX_HISTORY) {
+    pulseHistory = pulseHistory.slice(pulseHistory.length - MAX_HISTORY);
+  }
+  try {
+    fs.writeFileSync(HISTORY_PATH, JSON.stringify(pulseHistory));
+  } catch (e) {
+    console.warn('⚠️ Could not write history:', e.message);
   }
 }
 
@@ -56,6 +93,7 @@ async function runCollection() {
     const pulse = await fetchTexasPulse();
     if (pulse && pulse.topics && pulse.topics.length > 0) {
       saveCache(pulse);
+      appendHistory(pulse);
       console.log(`✅ Cache updated — ${pulse.totalVolume} posts from ${pulse.source}`);
     } else {
       console.warn('⚠️ Collection returned no data — keeping existing cache');
@@ -69,6 +107,7 @@ async function runCollection() {
 
 // Kick off immediately on startup, then on schedule
 loadCache();
+loadHistory();
 runCollection();
 setInterval(runCollection, REFRESH_INTERVAL_MS);
 
@@ -84,7 +123,15 @@ app.get('/api/health', (req, res) => {
       ? Math.max(0, Math.round((REFRESH_INTERVAL_MS - ageMs) / 60000))
       : null,
     isCollecting,
+    historySnapshots: pulseHistory.length,
   });
+});
+
+app.get('/api/sentiment/history', (req, res) => {
+  const days = Math.min(parseInt(req.query.days || '7'), 30);
+  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+  const filtered = pulseHistory.filter(s => new Date(s.date).getTime() >= cutoff);
+  res.json(filtered);
 });
 
 app.get('/api/sentiment/today', (req, res) => {

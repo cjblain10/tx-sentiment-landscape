@@ -83,9 +83,38 @@ function Particles({ count = 60 }) {
   return <canvas ref={ref} className="particles" />;
 }
 
+/* ── Overall sparkline (mini, no deps beyond React) ── */
+function OverallSparkline({ history }) {
+  if (!history || history.length < 2) return null;
+  const W = 200, H = 40, PAD = 4;
+  const scores = history.map(s => s.overallScore);
+  const min = Math.min(-0.1, ...scores);
+  const max = Math.max(0.1, ...scores);
+  const xScale = i => PAD + (i / (scores.length - 1)) * (W - PAD * 2);
+  const yScale = v => H - PAD - ((v - min) / (max - min)) * (H - PAD * 2);
+  const zero = yScale(0);
+  const pts = scores.map((v, i) => `${xScale(i)},${yScale(v)}`).join(' ');
+  const latest = scores[scores.length - 1];
+  const prev = scores[scores.length - 2];
+  const delta = latest - prev;
+  return (
+    <div className="overall-sparkline">
+      <svg width={W} height={H} style={{ overflow: 'visible' }}>
+        <line x1={PAD} x2={W - PAD} y1={zero} y2={zero} stroke="rgba(255,255,255,0.1)" strokeWidth="1" />
+        <polyline points={pts} fill="none" stroke={latest >= 0 ? '#10b981' : '#ef4444'} strokeWidth="1.5" strokeLinejoin="round" opacity="0.8" />
+        <circle cx={xScale(scores.length - 1)} cy={yScale(latest)} r="2.5" fill={latest >= 0 ? '#10b981' : '#ef4444'} />
+      </svg>
+      <span className={`sparkline-delta ${delta >= 0 ? 'pos' : 'neg'}`}>
+        {delta >= 0 ? '▲' : '▼'} {Math.abs(delta * 10).toFixed(1)} from last check
+      </span>
+    </div>
+  );
+}
+
 /* ── App ── */
 function App() {
   const [data, setData] = useState(null);
+  const [history, setHistory] = useState([]);
   const [selectedTopic, setSelectedTopic] = useState(null);
   const [selectedRegion, setSelectedRegion] = useState(null); // null = statewide
   const [loading, setLoading] = useState(true);
@@ -95,6 +124,11 @@ function App() {
 
   useEffect(() => {
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    // Fetch current data and history in parallel
+    fetch(`${apiUrl}/api/sentiment/history?days=7`)
+      .then(r => r.ok ? r.json() : [])
+      .then(h => setHistory(h))
+      .catch(() => {});
     fetch(`${apiUrl}/api/sentiment/today`)
       .then(r => r.json())
       .then(d => {
@@ -207,6 +241,7 @@ function App() {
                   {fmt(data.overallScore)}
                 </div>
                 <div className="overall-scale">out of ±10</div>
+                <OverallSparkline history={history} />
                 {data.scoreDelta !== undefined && data.scoreDelta !== 0 && (
                   <div className={`overall-delta ${data.scoreDelta > 0 ? 'pos' : 'neg'}`}>
                     {data.scoreDelta > 0 ? '▲' : '▼'}{Math.abs(data.scoreDelta * 10).toFixed(1)} from yesterday
