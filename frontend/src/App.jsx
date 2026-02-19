@@ -4,6 +4,12 @@ import './App.css';
 
 function capitalize(s) { return s.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '); }
 
+// Scale raw sentiment (-1..1) to display score (-10..10)
+function fmt(s) {
+  const scaled = s * 10;
+  return (scaled >= 0 ? '+' : '') + scaled.toFixed(1);
+}
+
 // Generate narrative summary from data
 function generateSummary(data) {
   if (!data || !data.categories) return '';
@@ -12,8 +18,8 @@ function generateSummary(data) {
   const mostPositive = [...categories].sort((a, b) => b.sentiment - a.sentiment)[0];
   const mostNegative = [...categories].sort((a, b) => a.sentiment - b.sentiment)[0];
 
-  const tone = data.overallScore >= 0.3 ? 'optimistic' :
-                data.overallScore <= -0.3 ? 'pessimistic' :
+  const tone = data.overallScore >= 0.03 ? 'optimistic' :
+                data.overallScore <= -0.03 ? 'pessimistic' :
                 'mixed';
 
   const toneWords = {
@@ -22,17 +28,16 @@ function generateSummary(data) {
     mixed: 'Texans show mixed feelings'
   };
 
-  return `${toneWords[tone]} as ${mostPositive.name.toLowerCase()} sentiment rises (${mostPositive.sentiment >= 0 ? '+' : ''}${mostPositive.sentiment.toFixed(1)}) while ${mostNegative.name.toLowerCase()} concerns ${mostNegative.sentiment < 0 ? 'deepen' : 'ease'} (${mostNegative.sentiment >= 0 ? '+' : ''}${mostNegative.sentiment.toFixed(1)}) across the state this week.`;
+  return `${toneWords[tone]} as ${mostPositive.name.toLowerCase()} sentiment leads (${fmt(mostPositive.sentiment)}) while ${mostNegative.name.toLowerCase()} trails (${fmt(mostNegative.sentiment)}) across the state this week.`;
 }
 
 // Generate contextual statement for category
 function getCategoryStatement(category) {
-  const sentiment = category.sentiment;
+  const s = category.sentiment;
   const name = category.name.toLowerCase();
-
-  if (sentiment >= 0.3) return `Texans express growing optimism about ${name}`;
-  if (sentiment >= 0) return `Sentiment on ${name} remains cautiously positive`;
-  if (sentiment >= -0.3) return `Texans show concerns about ${name}`;
+  if (s >= 0.03) return `Texans express cautiously positive sentiment on ${name}`;
+  if (s >= 0) return `Sentiment on ${name} is roughly neutral`;
+  if (s >= -0.03) return `Texans show mild concerns about ${name}`;
   return `Growing pessimism about ${name} across the state`;
 }
 
@@ -199,11 +204,12 @@ function App() {
               <div className={`overall-score ${entered ? 'entered' : ''}`}>
                 <div className="overall-label">Overall Texas Sentiment</div>
                 <div className={`overall-value ${data.overallScore >= 0 ? 'pos' : 'neg'}`}>
-                  {data.overallScore >= 0 ? '+' : ''}{data.overallScore.toFixed(1)}
+                  {fmt(data.overallScore)}
                 </div>
+                <div className="overall-scale">out of ±10</div>
                 {data.scoreDelta !== undefined && data.scoreDelta !== 0 && (
                   <div className={`overall-delta ${data.scoreDelta > 0 ? 'pos' : 'neg'}`}>
-                    {data.scoreDelta > 0 ? '▲' : '▼'}{Math.abs(data.scoreDelta).toFixed(1)} from yesterday
+                    {data.scoreDelta > 0 ? '▲' : '▼'}{Math.abs(data.scoreDelta * 10).toFixed(1)} from yesterday
                   </div>
                 )}
                 <div className="overall-meta">
@@ -254,7 +260,7 @@ function App() {
                     <div className="node-inner">
                       <span className="node-name">{capitalize(topic.name)}</span>
                       <span className="node-score">
-                        {isPos ? '+' : ''}{topic.sentiment.toFixed(2)}
+                        {fmt(topic.sentiment)}
                       </span>
                       <span className="node-vol">{topic.volume.toLocaleString()} mentions</span>
                     </div>
@@ -292,7 +298,7 @@ function App() {
                           )}
                         </div>
                         <div className={`context-item-score ${isPos ? 'pos' : 'neg'}`}>
-                          {isPos ? '+' : ''}{cat.sentiment.toFixed(1)}
+                          {fmt(cat.sentiment)}
                         </div>
                         <div className="context-item-meta">
                           {cat.volume.toLocaleString()} mentions
@@ -321,7 +327,7 @@ function App() {
                           </span>
                         </div>
                         <div className={`context-item-score ${isPos ? 'pos' : 'neg'}`}>
-                          {isPos ? '+' : ''}{topic.sentiment.toFixed(1)}
+                          {fmt(topic.sentiment)}
                         </div>
                         <div className="context-item-meta">
                           {topic.volume.toLocaleString()} mentions
@@ -346,7 +352,7 @@ function App() {
             <div className="detail-nums">
               <div className="detail-num">
                 <span className={`detail-big ${selectedTopic.sentiment >= 0 ? 'pos' : 'neg'}`}>
-                  {selectedTopic.sentiment >= 0 ? '+' : ''}{selectedTopic.sentiment.toFixed(2)}
+                  {fmt(selectedTopic.sentiment)}
                 </span>
                 <span className="detail-label">Sentiment</span>
               </div>
@@ -370,11 +376,11 @@ function App() {
                         <div className="region-bar-track">
                           <div
                             className={`region-bar-fill ${rd.sentiment >= 0 ? 'pos' : 'neg'}`}
-                            style={{ width: `${Math.min(Math.abs(rd.sentiment) * 100, 100)}%` }}
-                          />
+                            style={{ width: `${Math.min(Math.abs(rd.sentiment) * 1000, 100)}%` }}
+  />
                         </div>
                         <span className={`region-bar-value ${rd.sentiment >= 0 ? 'pos' : 'neg'}`}>
-                          {rd.sentiment >= 0 ? '+' : ''}{rd.sentiment.toFixed(2)}
+                          {fmt(rd.sentiment)}
                         </span>
                         <span className="region-bar-vol">{rd.volume}</span>
                       </div>
@@ -407,10 +413,23 @@ function App() {
         )}
       </main>
 
+      <section className="methodology">
+        <details>
+          <summary>How scores are calculated</summary>
+          <div className="methodology-body">
+            <p><strong>What the score means:</strong> Scores run from −10 (strongly negative) to +10 (strongly positive), with 0 as neutral. A score of +0.4 means slightly more positive language than negative across all sources — typical for everyday political discourse, which tends toward measured or mixed framing.</p>
+            <p><strong>Data sources (8 total):</strong> Reddit (r/Texas, r/Houston, r/Austin + 10 subreddits), Bluesky, Mastodon, YouTube comments, Google Trends (TX), Texas Tribune / Texas Observer / Texas Standard / Texas Scorecard / Texas Monthly (RSS), Breitbart Texas / Texas Policy Foundation / TX Right to Life (conservative RSS), and local TV news (KHOU, KVUE, WFAA, KENS5, KXAN). Refreshed every 2 hours.</p>
+            <p><strong>Sentiment method:</strong> Each post is scored by counting positive and negative words from a Texas-politics vocabulary (e.g., "relief," "reform," "affordable" vs. "crisis," "collapse," "surge"). Negation is handled — "not good" counts as negative. The overall score is weighted by engagement (upvotes, likes, comment count) so high-engagement posts carry more weight than low-engagement ones.</p>
+            <p><strong>Topics:</strong> Posts are tagged to 14 issues (border, energy, education, housing, etc.) using keyword matching. A single post can match multiple topics. Volume = number of posts touching that issue. Regional breakdown = posts that mention a specific TX city or metro area.</p>
+            <p><strong>What it isn&rsquo;t:</strong> This is not a poll. It reflects the language people use online, not their voting intent. Sources skew toward politically engaged users. It&rsquo;s best read as a directional signal — what issues are generating heat, and whether the language around them leans positive or negative.</p>
+          </div>
+        </details>
+      </section>
+
       <footer className="footer">
         <span>
           {staleInfo ? 'Cached data' : 'Reddit · Bluesky · Mastodon · YouTube · Texas news · Google Trends'}
-          &nbsp;&middot;&nbsp;Dynamic topic discovery&nbsp;&middot;&nbsp;Updated daily
+          &nbsp;&middot;&nbsp;8 sources&nbsp;&middot;&nbsp;Refreshed every 2 hours
         </span>
         <span>
           A <a href="https://lonestarstandard.com" target="_blank" rel="noopener">Lone Star Standard</a> project powered by <a href="https://localinsights.ai" target="_blank" rel="noopener">LocalInsights.ai</a>

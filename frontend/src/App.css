@@ -322,6 +322,56 @@ body {
   color: var(--text-muted);
 }
 
+.overall-scale {
+  font-family: var(--sans);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  opacity: 0.6;
+  margin-top: -4px;
+  margin-bottom: 4px;
+}
+
+/* Methodology */
+.methodology {
+  max-width: 900px;
+  margin: 0 auto 1rem;
+  padding: 0 2rem;
+}
+
+.methodology details summary {
+  font-family: var(--sans);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  user-select: none;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+.methodology details summary:hover { opacity: 1; }
+
+.methodology-body {
+  margin-top: 0.75rem;
+  padding: 1rem 1.25rem;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.methodology-body p {
+  font-family: var(--sans);
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.methodology-body strong {
+  color: var(--text-primary);
+}
+
 /* Region Filter */
 .region-filter {
   display: flex;
