@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { TrendSparkline } from './TrendSparkline';
-import { getDailySentimentData } from './mockData';
 import './App.css';
 
 function capitalize(s) { return s.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '); }
@@ -92,14 +91,19 @@ function App() {
   useEffect(() => {
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
     fetch(`${apiUrl}/api/sentiment/today`)
-      .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(r => r.json())
       .then(d => {
-        setData(d);
-        setDataSource(d.source || 'api');
-        if (d.stale) setStaleInfo({ cachedAt: d.cachedAt });
+        if (d.error) {
+          setData(null);
+          setDataSource('unavailable');
+        } else {
+          setData(d);
+          setDataSource(d.source || 'live');
+          if (d.stale) setStaleInfo({ cachedAt: d.cachedAt });
+        }
         setLoading(false);
       })
-      .catch(() => { setData(getDailySentimentData()); setDataSource('demo'); setLoading(false); });
+      .catch(() => { setData(null); setDataSource('unavailable'); setLoading(false); });
   }, []);
 
   useEffect(() => {
@@ -134,6 +138,17 @@ function App() {
     );
   }
 
+  if (dataSource === 'unavailable') {
+    return (
+      <div className="loading">
+        <div className="loading-text" style={{ color: '#ef4444' }}>Data sources temporarily unavailable</div>
+        <div className="loading-text" style={{ fontSize: '0.85rem', marginTop: '0.5rem', opacity: 0.6 }}>
+          Reddit, Bluesky, and news feeds are retrying. Check back shortly.
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="app">
       <Particles />
@@ -154,22 +169,22 @@ function App() {
         </div>
         <div className="header-right">
           <div className="live-badge">
-            <span className={`live-dot ${dataSource !== 'twitter' ? 'dim' : ''}`} />
-            {dataSource === 'twitter' && !staleInfo ? 'LIVE' : staleInfo ? 'CACHED' : 'DEMO'} &middot; {dateStr}
+            <span className={`live-dot ${(dataSource === 'unavailable' || staleInfo) ? 'dim' : ''}`} />
+            {staleInfo ? 'CACHED' : dataSource === 'unavailable' ? 'OFFLINE' : 'LIVE'} &middot; {dateStr}
           </div>
         </div>
       </header>
 
       {/* DATA STATUS BANNER */}
-      {(staleInfo || dataSource === 'demo') && (
+      {(staleInfo || dataSource === 'unavailable') && (
         <div className={`status-banner ${staleInfo ? 'stale' : 'demo'}`}>
           {staleInfo ? (
             <>
-              Live feed temporarily unavailable &middot; Showing cached data from{' '}
+              Showing cached data from{' '}
               {new Date(staleInfo.cachedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
             </>
           ) : (
-            <>Demo data &middot; Live Twitter feed not currently connected</>
+            <>Data sources temporarily unavailable &middot; Retrying soon</>
           )}
         </div>
       )}
@@ -394,7 +409,7 @@ function App() {
 
       <footer className="footer">
         <span>
-          {dataSource === 'twitter' ? 'Twitter/X via Composio' : 'Demo data'}
+          {staleInfo ? 'Cached data' : 'Reddit · Bluesky · Texas news feeds'}
           &nbsp;&middot;&nbsp;Dynamic topic discovery&nbsp;&middot;&nbsp;Updated daily
         </span>
         <span>
