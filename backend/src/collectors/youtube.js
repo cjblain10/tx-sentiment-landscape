@@ -1,8 +1,8 @@
 import { analyzeSentiment, matchTopics, detectRegion } from './shared.js';
 
 // YouTube Data API v3 — requires YOUTUBE_API_KEY env var
-// Free tier: 10,000 units/day. Search = 100 units. Video list = 1 unit.
-// 10,000 units ÷ 100 = 100 searches/day free.
+// Unit cost: search = 100 units, commentThreads = 1 unit per video
+// Free tier 10,000 units/day: 8 searches (800) + ~150 comment fetches (150) = ~950/day
 // Get a free key: https://console.cloud.google.com → Enable YouTube Data API v3
 
 const API_KEY = process.env.YOUTUBE_API_KEY;
@@ -25,13 +25,14 @@ function sleep(ms) {
   return new Promise(r => setTimeout(r, ms));
 }
 
+// Step 1: Find recent Texas political videos
 async function searchVideos(query) {
   try {
     const params = new URLSearchParams({
-      part: 'snippet',
+      part: 'id',
       q: query,
       type: 'video',
-      maxResults: '25',
+      maxResults: '20',
       relevanceLanguage: 'en',
       regionCode: 'US',
       publishedAfter: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
@@ -43,54 +44,55 @@ async function searchVideos(query) {
       throw new Error(err?.error?.message || `HTTP ${res.status}`);
     }
     const data = await res.json();
-    return data.items || [];
+    return (data.items || []).map(item => item.id?.videoId).filter(Boolean);
   } catch (err) {
-    console.warn(`  ⚠ YouTube "${query}": ${err.message}`);
+    console.warn(`  ⚠ YouTube search "${query}": ${err.message}`);
     return [];
   }
 }
 
-function normalizeVideo(item) {
-  const snippet = item.snippet;
-  if (!snippet) return null;
+// Step 2: Fetch top comments for a video (1 unit per call)
+async function fetchComments(videoId) {
+  try {
+    const params = new URLSearchParams({
+      part: 'snippet',
+      videoId,
+      maxResults: '50',
+      order: 'relevance',
+      textFormat: 'plainText',
+      key: API_KEY,
+    });
+    const res = await fetch(`${BASE}/commentThreads?${params}`);
+    if (!res.ok) return []; // comments may be disabled on some videos
+    const data = await res.json();
+    return (data.items || []).map(item => ({
+      text: item.snippet?.topLevelComment?.snippet?.textDisplay || '',
+      likes: item.snippet?.topLevelComment?.snippet?.likeCount || 0,
+    }));
+  } catch {
+    return [];
+  }
+}
 
-  const title       = snippet.title || '';
-  const description = (snippet.description || '').substring(0, 500);
-  const channelName = snippet.channelTitle || '';
-  const full        = `${title} ${description}`.trim();
+function normalizeComment(comment, videoId) {
+  const text = comment.text?.trim() || '';
+  if (text.length < 15) return null;
 
-  if (full.length < 20) return null;
-
-  // Filter to Texas-relevant content
-  const lowerFull = full.toLowerCase();
-  const isTXRelevant = (
-    lowerFull.includes('texas') ||
-    lowerFull.includes('austin') ||
-    lowerFull.includes('houston') ||
-    lowerFull.includes('dallas') ||
-    lowerFull.includes('ercot') ||
-    lowerFull.includes('texan') ||
-    lowerFull.includes('lone star')
-  );
-  if (!isTXRelevant) return null;
-
-  const matchedTopics = matchTopics(full);
+  const matchedTopics = matchTopics(text);
   if (matchedTopics.length === 0) return null;
 
-  const sentiment    = analyzeSentiment(full);
-  const region       = detectRegion(full);
-  const videoId      = item.id?.videoId || '';
-  const publishedAt  = snippet.publishedAt ? new Date(snippet.publishedAt) : new Date();
+  const sentiment = analyzeSentiment(text);
+  const region    = detectRegion(text);
 
   return {
-    id:           `youtube_${videoId}`,
+    id:           `yt_comment_${videoId}_${Buffer.from(text.substring(0, 20)).toString('base64')}`,
     source:       'youtube',
-    title,
-    text:         description,
+    title:        text.substring(0, 120),
+    text,
     url:          `https://www.youtube.com/watch?v=${videoId}`,
-    author:       channelName,
-    publishedAt,
-    engagement:   10, // baseline weight; video = higher signal than a tweet
+    author:       'youtube_viewer',
+    publishedAt:  new Date(),
+    engagement:   Math.max(comment.likes, 1),
     region,
     sentiment,
     matchedTopics,
@@ -99,27 +101,41 @@ function normalizeVideo(item) {
 
 export async function collectYouTubeVideos() {
   if (!API_KEY) {
-    console.log('📺 YouTube: no API key (YOUTUBE_API_KEY not set) — skipping');
+    console.log('📺 YouTube: no YOUTUBE_API_KEY — skipping');
     return [];
   }
 
-  const seen  = new Set();
-  const posts = [];
+  const seenVideos   = new Set();
+  const seenComments = new Set();
+  const posts        = [];
 
-  console.log(`📺 YouTube: running ${SEARCH_QUERIES.length} searches...`);
+  console.log(`📺 YouTube: searching ${SEARCH_QUERIES.length} queries for video IDs...`);
 
+  // Collect unique video IDs
+  const videoIds = [];
   for (let i = 0; i < SEARCH_QUERIES.length; i++) {
-    const items = await searchVideos(SEARCH_QUERIES[i]);
-    for (const item of items) {
-      const id = item.id?.videoId;
-      if (!id || seen.has(id)) continue;
-      seen.add(id);
-      const normalized = normalizeVideo(item);
-      if (normalized) posts.push(normalized);
+    const ids = await searchVideos(SEARCH_QUERIES[i]);
+    for (const id of ids) {
+      if (!seenVideos.has(id)) { seenVideos.add(id); videoIds.push(id); }
     }
     if (i < SEARCH_QUERIES.length - 1) await sleep(DELAY_MS);
   }
 
-  console.log(`📺 YouTube: collected ${posts.length} relevant videos`);
+  console.log(`📺 YouTube: fetching comments from ${videoIds.length} videos...`);
+
+  // Fetch comments for each video
+  for (let i = 0; i < videoIds.length; i++) {
+    const comments = await fetchComments(videoIds[i]);
+    for (const comment of comments) {
+      const key = comment.text.substring(0, 40);
+      if (seenComments.has(key)) continue;
+      seenComments.add(key);
+      const normalized = normalizeComment(comment, videoIds[i]);
+      if (normalized) posts.push(normalized);
+    }
+    if (i < videoIds.length - 1) await sleep(200);
+  }
+
+  console.log(`📺 YouTube: collected ${posts.length} relevant comments`);
   return posts;
 }
