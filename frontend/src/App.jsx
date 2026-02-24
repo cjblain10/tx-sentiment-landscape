@@ -85,7 +85,7 @@ function OverallSparkline({ history }) {
   return (
     <div className="overall-sparkline">
       <svg width={W} height={H} style={{ overflow: 'visible' }}>
-        <line x1={PAD} x2={W - PAD} y1={zero} y2={zero} stroke="rgba(0,0,0,0.1)" strokeWidth="1" />
+        <line x1={PAD} x2={W - PAD} y1={zero} y2={zero} stroke="rgba(255,255,255,0.1)" strokeWidth="1" />
         <polyline points={pts} fill="none" stroke={latest >= 0 ? '#10b981' : '#ef4444'} strokeWidth="1.5" strokeLinejoin="round" opacity="0.8" />
         <circle cx={xScale(scores.length - 1)} cy={yScale(latest)} r="2.5" fill={latest >= 0 ? '#10b981' : '#ef4444'} />
       </svg>
@@ -114,7 +114,7 @@ function CategorySparkline({ categoryName, history }) {
     const cy = H / 2;
     return (
       <svg width={W} height={H} className="cat-sparkline-svg" style={{ overflow: 'visible' }}>
-        <line x1={PAD} x2={W - PAD} y1={cy} y2={cy} stroke="rgba(0,0,0,0.08)" strokeWidth="1" />
+        <line x1={PAD} x2={W - PAD} y1={cy} y2={cy} stroke="rgba(255,255,255,0.12)" strokeWidth="1" />
         <circle cx={cx} cy={cy} r="3" fill={color} opacity="0.85" />
       </svg>
     );
@@ -129,7 +129,7 @@ function CategorySparkline({ categoryName, history }) {
 
   return (
     <svg width={W} height={H} className="cat-sparkline-svg" style={{ overflow: 'visible' }}>
-      <line x1={PAD} x2={W - PAD} y1={zero} y2={zero} stroke="rgba(0,0,0,0.08)" strokeWidth="1" />
+      <line x1={PAD} x2={W - PAD} y1={zero} y2={zero} stroke="rgba(255,255,255,0.12)" strokeWidth="1" />
       <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" opacity="0.85" />
       <circle cx={xScale(scores.length - 1)} cy={yScale(latest)} r="2.5" fill={color} />
     </svg>
@@ -571,13 +571,13 @@ function App() {
 
             {/* 30-day trend */}
             <div className="detail-trend">
-              <TrendSparkline topic={selectedTopic.name} />
+              <TrendSparkline topic={selectedTopic.name} dark />
             </div>
 
-            {/* Top mentions — only shown when real data is present */}
+            {/* Sample mentions */}
             {selectedTopic.topMentions?.length > 0 && (
               <div className="detail-mentions">
-                <div className="detail-label" style={{ marginBottom: '0.75rem' }}>Top Mentions</div>
+                <div className="detail-label" style={{ marginBottom: '0.75rem' }}>Sample Mentions</div>
                 {selectedTopic.topMentions.map((m, i) => (
                   <div key={i} className="mention">
                     <span className="mention-text">&ldquo;{m.text}&rdquo;</span>
