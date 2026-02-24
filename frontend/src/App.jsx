@@ -125,7 +125,7 @@ function App() {
   useEffect(() => {
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
     // Fetch current data and history in parallel
-    fetch(`${apiUrl}/api/sentiment/history?days=7`)
+    fetch(`${apiUrl}/api/sentiment/history?days=30`)
       .then(r => r.ok ? r.json() : [])
       .then(h => setHistory(h))
       .catch(() => {});
@@ -203,7 +203,7 @@ function App() {
           <span className="logo-powered">LocalInsights.ai</span>
         </div>
         <div className="header-center">
-          <h1 className="site-title">THE TEXAS PULSE</h1>
+          <h1 className="site-title">Texas Sentiment Monitor</h1>
           <p className="site-subtitle">Real-time sentiment tracking</p>
         </div>
         <div className="header-right">
@@ -250,6 +250,13 @@ function App() {
                 <div className="overall-meta">
                   Based on {totalVolume.toLocaleString()} mentions
                 </div>
+              </div>
+            )}
+
+            {/* 30-DAY OVERALL TREND */}
+            {history.length > 1 && (
+              <div className="overall-trend">
+                <TrendSparkline topic={null} dark />
               </div>
             )}
 
@@ -328,7 +335,7 @@ function App() {
                           <span className="context-item-name">{cat.name}</span>
                           {cat.delta !== undefined && cat.delta !== 0 && (
                             <span className={`context-item-delta ${cat.delta > 0 ? 'pos' : 'neg'}`}>
-                              {cat.delta > 0 ? '▲' : '▼'}{Math.abs(cat.delta).toFixed(1)}
+                              {cat.delta > 0 ? '▲' : '▼'}{Math.abs(cat.delta * 10).toFixed(1)}
                             </span>
                           )}
                         </div>
@@ -358,7 +365,7 @@ function App() {
                         <div className="context-item-header">
                           <span className="context-item-name">{capitalize(topic.name)}</span>
                           <span className={`context-item-delta ${deltaIsPos ? 'pos' : 'neg'}`}>
-                            {deltaIsPos ? '▲' : '▼'}{Math.abs(topic.delta).toFixed(1)}
+                            {deltaIsPos ? '▲' : '▼'}{Math.abs(topic.delta * 10).toFixed(1)}
                           </span>
                         </div>
                         <div className={`context-item-score ${isPos ? 'pos' : 'neg'}`}>
@@ -418,6 +425,29 @@ function App() {
                           {fmt(rd.sentiment)}
                         </span>
                         <span className="region-bar-vol">{rd.volume}</span>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+
+            {/* Source Breakdown */}
+            {selectedTopic.sourceCounts && Object.keys(selectedTopic.sourceCounts).length > 0 && (
+              <div className="detail-sources">
+                <div className="detail-label" style={{ marginBottom: '0.75rem' }}>Source Breakdown</div>
+                <div className="source-bars">
+                  {Object.entries(selectedTopic.sourceCounts)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([src, count]) => (
+                      <div key={src} className="source-bar-row">
+                        <span className="source-bar-label">{src}</span>
+                        <div className="source-bar-track">
+                          <div
+                            className="source-bar-fill"
+                            style={{ width: `${Math.round((count / selectedTopic.volume) * 100)}%` }}
+                          />
+                        </div>
+                        <span className="source-bar-count">{count}</span>
                       </div>
                     ))}
                 </div>
