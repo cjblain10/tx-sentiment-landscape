@@ -13,32 +13,17 @@ function fmt(s) {
 // Generate narrative summary from data
 function generateSummary(data) {
   if (!data || !data.categories) return '';
-
   const categories = data.categories;
   const mostPositive = [...categories].sort((a, b) => b.sentiment - a.sentiment)[0];
   const mostNegative = [...categories].sort((a, b) => a.sentiment - b.sentiment)[0];
-
   const tone = data.overallScore >= 0.03 ? 'optimistic' :
-                data.overallScore <= -0.03 ? 'pessimistic' :
-                'mixed';
-
+               data.overallScore <= -0.03 ? 'pessimistic' : 'mixed';
   const toneWords = {
     optimistic: 'Texans remain cautiously optimistic',
     pessimistic: 'Texans express growing concerns',
-    mixed: 'Texans show mixed feelings'
+    mixed: 'Texans show mixed feelings',
   };
-
   return `${toneWords[tone]} as ${mostPositive.name.toLowerCase()} sentiment leads (${fmt(mostPositive.sentiment)}) while ${mostNegative.name.toLowerCase()} trails (${fmt(mostNegative.sentiment)}) across the state this week.`;
-}
-
-// Generate contextual statement for category
-function getCategoryStatement(category) {
-  const s = category.sentiment;
-  const name = category.name.toLowerCase();
-  if (s >= 0.03) return `Texans express cautiously positive sentiment on ${name}`;
-  if (s >= 0) return `Sentiment on ${name} is roughly neutral`;
-  if (s >= -0.03) return `Texans show mild concerns about ${name}`;
-  return `Growing pessimism about ${name} across the state`;
 }
 
 /* ── Floating Particles ── */
@@ -83,7 +68,7 @@ function Particles({ count = 60 }) {
   return <canvas ref={ref} className="particles" />;
 }
 
-/* ── Overall sparkline (mini, no deps beyond React) ── */
+/* ── Overall sparkline ── */
 function OverallSparkline({ history }) {
   if (!history || history.length < 2) return null;
   const W = 200, H = 40, PAD = 4;
@@ -111,31 +96,57 @@ function OverallSparkline({ history }) {
   );
 }
 
+/* ── Category sparkline from history ── */
+function CategorySparkline({ categoryName, history }) {
+  if (!history || history.length < 2) return null;
+  const scores = history
+    .map(snap => snap.categories?.find(c => c.name === categoryName)?.sentiment ?? null)
+    .filter(v => v !== null);
+  if (scores.length < 2) return null;
+
+  const W = 160, H = 32, PAD = 3;
+  const min = Math.min(-0.05, ...scores);
+  const max = Math.max(0.05, ...scores);
+  const xScale = i => PAD + (i / (scores.length - 1)) * (W - PAD * 2);
+  const yScale = v => H - PAD - ((v - min) / (max - min)) * (H - PAD * 2);
+  const zero = yScale(0);
+  const pts = scores.map((v, i) => `${xScale(i)},${yScale(v)}`).join(' ');
+  const latest = scores[scores.length - 1];
+
+  return (
+    <svg width={W} height={H} className="cat-sparkline-svg" style={{ overflow: 'visible' }}>
+      <line x1={PAD} x2={W - PAD} y1={zero} y2={zero} stroke="rgba(255,255,255,0.12)" strokeWidth="1" />
+      <polyline points={pts} fill="none" stroke={latest >= 0 ? '#10b981' : '#ef4444'} strokeWidth="1.5" strokeLinejoin="round" opacity="0.85" />
+      <circle cx={xScale(scores.length - 1)} cy={yScale(latest)} r="2.5" fill={latest >= 0 ? '#10b981' : '#ef4444'} />
+    </svg>
+  );
+}
+
 /* ── App ── */
 function App() {
   const [data, setData] = useState(null);
   const [history, setHistory] = useState([]);
   const [selectedTopic, setSelectedTopic] = useState(null);
-  const [selectedRegion, setSelectedRegion] = useState(null); // null = statewide
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [selectedRegion, setSelectedRegion] = useState(null);
   const [loading, setLoading] = useState(true);
   const [dataSource, setDataSource] = useState('demo');
-  const [staleInfo, setStaleInfo] = useState(null); // { cachedAt } if serving stale data
+  const [staleInfo, setStaleInfo] = useState(null);
   const [entered, setEntered] = useState(false);
+  const [copyMsg, setCopyMsg] = useState('');
+
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
   useEffect(() => {
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-    // Fetch current data and history in parallel
-    fetch(`${apiUrl}/api/sentiment/history?days=7`)
+    fetch(`${apiUrl}/api/sentiment/history?days=30`)
       .then(r => r.ok ? r.json() : [])
       .then(h => setHistory(h))
       .catch(() => {});
     fetch(`${apiUrl}/api/sentiment/today`)
       .then(r => r.json())
       .then(d => {
-        if (d.error) {
-          setData(null);
-          setDataSource('unavailable');
-        } else {
+        if (d.error) { setData(null); setDataSource('unavailable'); }
+        else {
           setData(d);
           setDataSource(d.source || 'live');
           if (d.stale) setStaleInfo({ cachedAt: d.cachedAt });
@@ -149,13 +160,20 @@ function App() {
     if (!loading) { const t = setTimeout(() => setEntered(true), 50); return () => clearTimeout(t); }
   }, [loading]);
 
-  // Derive topics for the active region
   const topics = (data?.topics || []).map(t => {
-    if (!selectedRegion) return t; // statewide
+    if (!selectedRegion) return t;
     const rd = t.byRegion?.[selectedRegion];
     if (!rd || rd.volume === 0) return null;
     return { ...t, sentiment: rd.sentiment, volume: rd.volume };
   }).filter(Boolean).sort((a, b) => b.volume - a.volume);
+
+  // When a category is selected, filter topic nodes to that category's sub-topics
+  const visibleTopics = selectedCategory
+    ? topics.filter(t => {
+        const cat = data?.categories?.find(c => c.name === selectedCategory);
+        return cat?.topics?.includes(t.name);
+      })
+    : topics;
 
   const totalVolume = topics.reduce((s, t) => s + t.volume, 0);
   const regions = data?.regions || {};
@@ -167,6 +185,38 @@ function App() {
   const handleSelectTopic = useCallback((name) => {
     setSelectedTopic(prev => prev?.name === name ? null : topics.find(t => t.name === name));
   }, [topics]);
+
+  function handleShare() {
+    const url = window.location.href;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(url).then(() => {
+        setCopyMsg('Copied!');
+        setTimeout(() => setCopyMsg(''), 2000);
+      });
+    }
+  }
+
+  function handleExportCSV() {
+    if (!data) return;
+    const rows = [['Topic', 'Sentiment Score', 'Volume', 'Category']];
+    data.categories?.forEach(cat => {
+      (cat.topics || []).forEach(topicName => {
+        const t = topics.find(x => x.name === topicName);
+        if (t) rows.push([t.name, (t.sentiment * 10).toFixed(2), t.volume, cat.name]);
+      });
+    });
+    // Add topics not in any category
+    topics.forEach(t => {
+      const inCat = data.categories?.some(c => c.topics?.includes(t.name));
+      if (!inCat) rows.push([t.name, (t.sentiment * 10).toFixed(2), t.volume, '']);
+    });
+    const csv = rows.map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `texas-sentiment-${data.date || 'today'}.csv`; a.click();
+    URL.revokeObjectURL(url);
+  }
 
   if (loading) {
     return (
@@ -203,35 +253,45 @@ function App() {
           <span className="logo-powered">LocalInsights.ai</span>
         </div>
         <div className="header-center">
-          <h1 className="site-title">THE TEXAS PULSE</h1>
-          <p className="site-subtitle">Real-time sentiment tracking</p>
+          <h1 className="site-title">LONE STAR PULSE</h1>
+          <p className="site-subtitle">Texas Public Sentiment Index</p>
         </div>
         <div className="header-right">
-          <div className="live-badge">
-            <span className={`live-dot ${(dataSource === 'unavailable' || staleInfo) ? 'dim' : ''}`} />
-            {staleInfo ? 'CACHED' : dataSource === 'unavailable' ? 'OFFLINE' : 'LIVE'} &middot; {dateStr}
+          <div className="header-actions">
+            <button className="hdr-btn" onClick={handleShare} title="Copy link to share">
+              {copyMsg || '⤴ Share'}
+            </button>
+            <button className="hdr-btn" onClick={handleExportCSV} title="Download CSV">
+              ↓ CSV
+            </button>
+            <div className="live-badge">
+              <span className={`live-dot ${(dataSource === 'unavailable' || staleInfo) ? 'dim' : ''}`} />
+              {staleInfo ? 'CACHED' : dataSource === 'unavailable' ? 'OFFLINE' : 'LIVE'} &middot; {dateStr}
+            </div>
           </div>
         </div>
       </header>
 
-      {/* DATA STATUS BANNER */}
       {(staleInfo || dataSource === 'unavailable') && (
         <div className={`status-banner ${staleInfo ? 'stale' : 'demo'}`}>
           {staleInfo ? (
-            <>
-              Showing cached data from{' '}
-              {new Date(staleInfo.cachedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
-            </>
+            <>Showing cached data from {new Date(staleInfo.cachedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</>
           ) : (
             <>Data sources temporarily unavailable &middot; Retrying soon</>
           )}
         </div>
       )}
 
+      {/* SUMMARY PARAGRAPH — prominent, above the fold */}
+      {data && (
+        <div className={`summary-bar ${entered ? 'entered' : ''}`}>
+          <p className="summary-text">{generateSummary(data)}</p>
+        </div>
+      )}
+
       <main className="main">
-        {/* LAYOUT: CENTER VISUALIZATION + RIGHT SIDEBAR */}
         <div className="content-wrapper">
-          {/* LEFT/CENTER: SENTIMENT VISUALIZATION */}
+          {/* LEFT/CENTER: VISUALIZATION */}
           <div className="viz-area">
             {/* OVERALL SCORE */}
             {data && (
@@ -248,7 +308,7 @@ function App() {
                   </div>
                 )}
                 <div className="overall-meta">
-                  Based on {totalVolume.toLocaleString()} mentions
+                  {totalVolume.toLocaleString()} mentions &middot; 8 sources &middot; {history.length} days tracked
                 </div>
               </div>
             )}
@@ -272,13 +332,62 @@ function App() {
               ))}
             </div>
 
-            {/* PULSE GRID - CIRCULAR SENTIMENT NODES */}
+            {/* 4 CATEGORY CARDS — primary view */}
+            {data?.categories && data.categories.length > 0 && (
+              <div className={`category-grid ${entered ? 'entered' : ''}`}>
+                {data.categories.map((cat, idx) => {
+                  const isPos = cat.sentiment >= 0;
+                  const isSelected = selectedCategory === cat.name;
+                  return (
+                    <button
+                      key={cat.name}
+                      className={`cat-card ${isPos ? 'pos' : 'neg'} ${isSelected ? 'selected' : ''}`}
+                      style={{ '--cat-delay': `${idx * 0.1}s` }}
+                      onClick={() => {
+                        setSelectedCategory(prev => prev === cat.name ? null : cat.name);
+                        setSelectedTopic(null);
+                      }}
+                    >
+                      <div className="cat-card-header">
+                        <span className="cat-card-name">{cat.name}</span>
+                        {cat.delta !== undefined && cat.delta !== 0 && (
+                          <span className={`cat-card-delta ${cat.delta > 0 ? 'pos' : 'neg'}`}>
+                            {cat.delta > 0 ? '▲' : '▼'}{Math.abs(cat.delta * 10).toFixed(1)}
+                          </span>
+                        )}
+                      </div>
+                      <div className={`cat-card-score ${isPos ? 'pos' : 'neg'}`}>
+                        {fmt(cat.sentiment)}
+                      </div>
+                      <CategorySparkline categoryName={cat.name} history={history} />
+                      <div className="cat-card-footer">
+                        <span className="cat-card-vol">{cat.volume.toLocaleString()} mentions</span>
+                        <span className="cat-card-topics">
+                          {(cat.topics || []).map(t => capitalize(t)).join(' · ')}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* TOPIC DRILL-DOWN HEADER */}
+            {selectedCategory && (
+              <div className="drill-header">
+                <span className="drill-label">Topics in {selectedCategory}</span>
+                <button className="drill-clear" onClick={() => { setSelectedCategory(null); setSelectedTopic(null); }}>
+                  &times; Show All
+                </button>
+              </div>
+            )}
+
+            {/* PULSE GRID — topic nodes */}
             <div className="pulse-grid">
-              {topics.map((topic, idx) => {
+              {visibleTopics.map((topic, idx) => {
                 const isPos = topic.sentiment >= 0;
                 const intensity = Math.min(Math.abs(topic.sentiment), 1);
                 const isSelected = selectedTopic?.name === topic.name;
-
                 return (
                   <button
                     key={topic.name}
@@ -294,9 +403,7 @@ function App() {
                     <div className="node-ring" />
                     <div className="node-inner">
                       <span className="node-name">{capitalize(topic.name)}</span>
-                      <span className="node-score">
-                        {fmt(topic.sentiment)}
-                      </span>
+                      <span className="node-score">{fmt(topic.sentiment)}</span>
                       <span className="node-vol">{topic.volume.toLocaleString()} mentions</span>
                     </div>
                   </button>
@@ -305,50 +412,12 @@ function App() {
             </div>
           </div>
 
-          {/* RIGHT SIDEBAR: CONTEXT BOXES */}
+          {/* RIGHT SIDEBAR */}
           <div className="sidebar">
-            {/* TODAY'S MOOD SUMMARY */}
-            {data && (
-              <div className={`context-box mood-box ${entered ? 'entered' : ''}`}>
-                <h3 className="context-title">Today's Mood</h3>
-                <p className="context-text">{generateSummary(data)}</p>
-              </div>
-            )}
-
-            {/* KEY ISSUES */}
-            {data?.categories && data.categories.length > 0 && (
-              <div className={`context-box categories-box ${entered ? 'entered' : ''}`}>
-                <h3 className="context-title">Key Issues</h3>
-                <div className="context-list">
-                  {data.categories.map((cat, idx) => {
-                    const isPos = cat.sentiment >= 0;
-                    return (
-                      <div key={cat.name} className="context-item" style={{ '--delay': `${idx * 0.1}s` }}>
-                        <div className="context-item-header">
-                          <span className="context-item-name">{cat.name}</span>
-                          {cat.delta !== undefined && cat.delta !== 0 && (
-                            <span className={`context-item-delta ${cat.delta > 0 ? 'pos' : 'neg'}`}>
-                              {cat.delta > 0 ? '▲' : '▼'}{Math.abs(cat.delta).toFixed(1)}
-                            </span>
-                          )}
-                        </div>
-                        <div className={`context-item-score ${isPos ? 'pos' : 'neg'}`}>
-                          {fmt(cat.sentiment)}
-                        </div>
-                        <div className="context-item-meta">
-                          {cat.volume.toLocaleString()} mentions
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* BIGGEST SHIFTS */}
+            {/* BIGGEST SWINGS */}
             {data?.biggestMovers && data.biggestMovers.length > 0 && (
               <div className={`context-box movers-box ${entered ? 'entered' : ''}`}>
-                <h3 className="context-title">Biggest Shifts Today</h3>
+                <h3 className="context-title">Biggest Swings Today</h3>
                 <div className="context-list">
                   {data.biggestMovers.map((topic, idx) => {
                     const isPos = topic.sentiment >= 0;
@@ -358,32 +427,64 @@ function App() {
                         <div className="context-item-header">
                           <span className="context-item-name">{capitalize(topic.name)}</span>
                           <span className={`context-item-delta ${deltaIsPos ? 'pos' : 'neg'}`}>
-                            {deltaIsPos ? '▲' : '▼'}{Math.abs(topic.delta).toFixed(1)}
+                            {deltaIsPos ? '▲' : '▼'}{Math.abs(topic.delta * 10).toFixed(1)}
                           </span>
                         </div>
                         <div className={`context-item-score ${isPos ? 'pos' : 'neg'}`}>
                           {fmt(topic.sentiment)}
                         </div>
-                        <div className="context-item-meta">
-                          {topic.volume.toLocaleString()} mentions
-                        </div>
+                        <div className="context-item-meta">{topic.volume.toLocaleString()} mentions</div>
                       </div>
                     );
                   })}
                 </div>
               </div>
             )}
+
+            {/* SOURCE ATTRIBUTION */}
+            <div className={`context-box source-box ${entered ? 'entered' : ''}`}>
+              <h3 className="context-title">Data Sources</h3>
+              <div className="source-chips">
+                {['Reddit', 'Bluesky', 'Mastodon', 'YouTube', 'Texas Tribune', 'Texas Standard', 'Breitbart TX', 'Google Trends'].map(src => (
+                  <span key={src} className="source-chip">{src}</span>
+                ))}
+              </div>
+              <p className="source-meta">8 sources &middot; Refreshed every 2 hours &middot; TX-focused keywords</p>
+            </div>
+
+            {/* SHARE & EXPORT */}
+            <div className={`context-box share-box ${entered ? 'entered' : ''}`}>
+              <h3 className="context-title">Share & Export</h3>
+              <div className="share-actions">
+                <button className="share-action-btn" onClick={handleShare}>
+                  {copyMsg ? '✓ Link copied!' : '⤴ Copy link'}
+                </button>
+                <button className="share-action-btn" onClick={handleExportCSV}>
+                  ↓ Download CSV
+                </button>
+                <a
+                  href={`${apiUrl}/api/sentiment/ticker`}
+                  className="share-action-btn api-link"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {'</>'} API &middot; Ticker embed
+                </a>
+              </div>
+              <p className="source-meta" style={{ marginTop: '0.75rem' }}>
+                Embed the ticker on any page via the JSON API endpoint.
+              </p>
+            </div>
           </div>
         </div>
 
-        {/* DETAIL PANEL */}
+        {/* DETAIL PANEL — topic drill-down */}
         {selectedTopic && (
           <section className="detail" key={selectedTopic.name}>
             <div className="detail-top">
               <h3>{capitalize(selectedTopic.name)}</h3>
               <button className="detail-close" onClick={() => setSelectedTopic(null)}>&times;</button>
             </div>
-
             <div className="detail-nums">
               <div className="detail-num">
                 <span className={`detail-big ${selectedTopic.sentiment >= 0 ? 'pos' : 'neg'}`}>
@@ -397,7 +498,7 @@ function App() {
               </div>
             </div>
 
-            {/* Regional breakdown (show when statewide) */}
+            {/* Regional breakdown */}
             {!selectedRegion && selectedTopic.byRegion && Object.keys(selectedTopic.byRegion).length > 0 && (
               <div className="detail-regions">
                 <div className="detail-label" style={{ marginBottom: '0.75rem' }}>By Region</div>
@@ -412,7 +513,7 @@ function App() {
                           <div
                             className={`region-bar-fill ${rd.sentiment >= 0 ? 'pos' : 'neg'}`}
                             style={{ width: `${Math.min(Math.abs(rd.sentiment) * 1000, 100)}%` }}
-  />
+                          />
                         </div>
                         <span className={`region-bar-value ${rd.sentiment >= 0 ? 'pos' : 'neg'}`}>
                           {fmt(rd.sentiment)}
@@ -424,12 +525,12 @@ function App() {
               </div>
             )}
 
-            {/* 30-Day Trend */}
+            {/* 30-day trend */}
             <div className="detail-trend">
               <TrendSparkline topic={selectedTopic.name} dark />
             </div>
 
-            {/* Sample Mentions */}
+            {/* Sample mentions */}
             {selectedTopic.topMentions?.length > 0 && (
               <div className="detail-mentions">
                 <div className="detail-label" style={{ marginBottom: '0.75rem' }}>Sample Mentions</div>
@@ -454,9 +555,9 @@ function App() {
           <div className="methodology-body">
             <p><strong>What the score means:</strong> Scores run from −10 (strongly negative) to +10 (strongly positive), with 0 as neutral. A score of +0.4 means slightly more positive language than negative across all sources — typical for everyday political discourse, which tends toward measured or mixed framing.</p>
             <p><strong>Data sources (8 total):</strong> Reddit (r/Texas, r/Houston, r/Austin + 10 subreddits), Bluesky, Mastodon, YouTube comments, Google Trends (TX), Texas Tribune / Texas Observer / Texas Standard / Texas Scorecard / Texas Monthly (RSS), Breitbart Texas / Texas Policy Foundation / TX Right to Life (conservative RSS), and local TV news (KHOU, KVUE, WFAA, KENS5, KXAN). Refreshed every 2 hours.</p>
-            <p><strong>Sentiment method:</strong> Each post is scored by counting positive and negative words from a Texas-politics vocabulary (e.g., "relief," "reform," "affordable" vs. "crisis," "collapse," "surge"). Negation is handled — "not good" counts as negative. The overall score is weighted by engagement (upvotes, likes, comment count) so high-engagement posts carry more weight than low-engagement ones.</p>
-            <p><strong>Topics:</strong> Posts are tagged to 14 issues (border, energy, education, housing, etc.) using keyword matching. A single post can match multiple topics. Volume = number of posts touching that issue. Regional breakdown = posts that mention a specific TX city or metro area.</p>
-            <p><strong>What it isn&rsquo;t:</strong> This is not a poll. It reflects the language people use online, not their voting intent. Sources skew toward politically engaged users. It&rsquo;s best read as a directional signal — what issues are generating heat, and whether the language around them leans positive or negative.</p>
+            <p><strong>Sentiment method:</strong> Each post is scored by counting positive and negative words from a Texas-politics vocabulary. Negation is handled — &ldquo;not good&rdquo; counts as negative. The overall score is weighted by engagement (upvotes, likes, comment count) so high-engagement posts carry more weight.</p>
+            <p><strong>4 categories:</strong> Topics are grouped into Cost of Living (housing, property tax), Economy (economy &amp; jobs), Healthcare, and Education. Category scores are volume-weighted averages of their constituent topics.</p>
+            <p><strong>What it isn&rsquo;t:</strong> This is not a poll. It reflects the language people use online, not their voting intent. Sources skew toward politically engaged users. Best read as a directional signal — what issues are generating heat, and whether the language leans positive or negative.</p>
           </div>
         </details>
       </section>
@@ -467,7 +568,8 @@ function App() {
           &nbsp;&middot;&nbsp;8 sources&nbsp;&middot;&nbsp;Refreshed every 2 hours
         </span>
         <span>
-          A <a href="https://lonestarstandard.com" target="_blank" rel="noopener">Lone Star Standard</a> project powered by <a href="https://localinsights.ai" target="_blank" rel="noopener">LocalInsights.ai</a>
+          A <a href="https://lonestarstandard.com" target="_blank" rel="noopener">Lone Star Standard</a> project powered by{' '}
+          <a href="https://localinsights.ai" target="_blank" rel="noopener">LocalInsights.ai</a>
         </span>
       </footer>
     </div>

@@ -12,8 +12,8 @@ const HISTORY_PATH = '/tmp/tx-pulse-history.json';
 // Default: 2 hours. Override with REFRESH_INTERVAL_MS env var.
 const REFRESH_INTERVAL_MS = parseInt(process.env.REFRESH_INTERVAL_MS || '') || 2 * 60 * 60 * 1000;
 
-// Keep up to 7 days of snapshots (12 runs/day × 7 = 84 max)
-const MAX_HISTORY = 84;
+// Keep up to 30 days of snapshots (12 runs/day × 30 = 360 max)
+const MAX_HISTORY = 360;
 
 app.use(cors());
 app.use(express.json());
@@ -128,10 +128,51 @@ app.get('/api/health', (req, res) => {
 });
 
 app.get('/api/sentiment/history', (req, res) => {
-  const days = Math.min(parseInt(req.query.days || '7'), 30);
+  const days = Math.min(parseInt(req.query.days || '30'), 30);
   const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
   const filtered = pulseHistory.filter(s => new Date(s.date).getTime() >= cutoff);
   res.json(filtered);
+});
+
+// ── Ticker embed endpoint (lightweight, CORS-open for LSS embed) ──
+app.get('/api/sentiment/ticker', (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Cache-Control', 'public, max-age=300'); // 5-min CDN cache
+
+  if (!pulseCache?.data) {
+    return res.status(503).json({ error: true, message: 'No data available yet.' });
+  }
+
+  const d = pulseCache.data;
+  const fmt = (s) => ((s * 10) >= 0 ? '+' : '') + (s * 10).toFixed(1);
+
+  // Top mover by absolute delta
+  const topMover = d.biggestMovers?.[0] || null;
+
+  res.json({
+    overall: {
+      score: fmt(d.overallScore),
+      rawScore: parseFloat((d.overallScore * 10).toFixed(1)),
+      delta: d.scoreDelta ? fmt(d.scoreDelta) : '0.0',
+      label: 'Texas Sentiment',
+    },
+    categories: (d.categories || []).map(c => ({
+      name: c.name,
+      score: fmt(c.sentiment),
+      rawScore: parseFloat((c.sentiment * 10).toFixed(1)),
+      delta: c.delta ? fmt(c.delta) : '0.0',
+      volume: c.volume,
+    })),
+    topMover: topMover ? {
+      name: topMover.name,
+      score: fmt(topMover.sentiment),
+      delta: topMover.delta ? fmt(topMover.delta) : '0.0',
+    } : null,
+    date: d.date,
+    updatedAt: pulseCache.cachedAt,
+    sources: 8,
+    embedUrl: 'https://sentiment.localinsights.ai',
+  });
 });
 
 app.get('/api/sentiment/today', (req, res) => {
