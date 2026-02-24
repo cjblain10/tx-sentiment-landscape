@@ -7,10 +7,10 @@ headers = []
 [functions."*"]
 
 [build]
-publish = "/Users/cb/Projects/tx-sentiment-landscape/frontend/dist"
+publish = "/Users/cb/Library/CloudStorage/GoogleDrive-charles@urbanreform.org/Shared drives/Data/Projects/tx-sentiment-landscape/frontend/dist"
 publishOrigin = "config"
 commandOrigin = "config"
-base = "/Users/cb/Projects/tx-sentiment-landscape/frontend"
+base = "/Users/cb/Library/CloudStorage/GoogleDrive-charles@urbanreform.org/Shared drives/Data/Projects/tx-sentiment-landscape/frontend"
 command = "npm run build"
 
 [build.environment]

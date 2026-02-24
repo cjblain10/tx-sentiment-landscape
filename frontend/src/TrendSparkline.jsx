@@ -27,9 +27,11 @@ export function TrendSparkline({ topic, dark = false }) {
       ? { line: '#94a3b8', axis: '#334155', tick: '#64748b', pos: '#10b981', neg: '#ef4444', hover: '#C4553A' }
       : { line: '#4A4A5A', axis: '#E5DED6', tick: '#9CA3AF', pos: '#059669', neg: '#DC2626', hover: '#C4553A' };
 
-    // New history shape: each day has `topics[]` instead of `figures[]`
+    // Build time series — overall score (topic=null) or specific topic
     const data = history.map(day => {
-      // Find this topic in the day's data
+      if (topic === null || topic === undefined) {
+        return { date: new Date(day.date), sentiment: day.overallScore || 0 };
+      }
       const topicData = (day.topics || []).find(t => t.name === topic);
       if (topicData) {
         return { date: new Date(day.date), sentiment: topicData.sentiment };
@@ -109,7 +111,7 @@ export function TrendSparkline({ topic, dark = false }) {
 
   return (
     <div className="trend-container" ref={containerRef} style={{ position: 'relative' }}>
-      <div className="trend-header"><span className="trend-label">30-Day Trend</span></div>
+      <div className="trend-header"><span className="trend-label">{topic != null ? '30-Day Trend' : '30-Day Overall Trend'}</span></div>
       <div ref={tooltipRef} className="trend-tooltip" style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', transition: 'opacity 0.15s' }} />
       <svg ref={svgRef} />
     </div>
