@@ -315,6 +315,31 @@ function App() {
                   {fmt(data.overallScore)}
                 </div>
                 <div className="overall-scale">out of ±10</div>
+
+                {/* SENTIMENT SCALE BAR */}
+                <div className="sentiment-bar-wrap">
+                  <div className="sentiment-bar">
+                    <div
+                      className="sentiment-marker"
+                      style={{ left: `${((data.overallScore + 1) / 2) * 100}%` }}
+                    />
+                  </div>
+                  <div className="sentiment-bar-labels">
+                    <span>−10 Very negative</span>
+                    <span>0 Neutral</span>
+                    <span>+10 Very positive</span>
+                  </div>
+                </div>
+
+                {/* PLAIN-LANGUAGE INTERPRETATION */}
+                <div className="sentiment-note">
+                  {data.overallScore >= 0.5 ? 'Clearly positive — online conversation leans optimistic' :
+                   data.overallScore >= 0.15 ? 'Mildly positive — slightly more hopeful than concerned' :
+                   data.overallScore >= -0.15 ? 'Roughly neutral — balanced mix of positive and negative language' :
+                   data.overallScore >= -0.5 ? 'Mildly negative — slightly more concern than optimism' :
+                   'Clearly negative — online conversation leans pessimistic'}
+                </div>
+
                 <OverallSparkline history={history} />
                 {data.scoreDelta !== undefined && data.scoreDelta !== 0 && (
                   <div className={`overall-delta ${data.scoreDelta > 0 ? 'pos' : 'neg'}`}>
@@ -322,7 +347,12 @@ function App() {
                   </div>
                 )}
                 <div className="overall-meta">
-                  {totalVolume.toLocaleString()} mentions &middot; 8 sources &middot; {history.length} days tracked
+                  {totalVolume.toLocaleString()} mentions &middot; 8 sources
+                  &nbsp;&middot;&nbsp;
+                  {history.length} {history.length === 1 ? 'snapshot' : 'snapshots'}
+                  {history.length > 0 && (
+                    <> ({Math.max(1, Math.round(history.length / 12))} {Math.round(history.length / 12) === 1 ? 'day' : 'days'} of data)</>
+                  )}
                 </div>
               </div>
             )}

@@ -331,6 +331,53 @@ body {
   margin-bottom: 4px;
 }
 
+/* ── SENTIMENT SCALE BAR ── */
+.sentiment-bar-wrap {
+  width: 100%;
+  max-width: 300px;
+  margin: 0.75rem auto 0.25rem;
+}
+
+.sentiment-bar {
+  position: relative;
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(to right, #ef4444 0%, #64748b 50%, #10b981 100%);
+  opacity: 0.7;
+}
+
+.sentiment-marker {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid rgba(255,255,255,0.9);
+  box-shadow: 0 0 6px rgba(0,0,0,0.5);
+}
+
+.sentiment-bar-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.35rem;
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+}
+
+/* ── PLAIN-LANGUAGE INTERPRETATION ── */
+.sentiment-note {
+  font-family: var(--sans);
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  font-style: italic;
+  margin: 0.5rem 0 0.25rem;
+  line-height: 1.4;
+}
+
 .overall-sparkline {
   display: flex;
   flex-direction: column;
