@@ -8,26 +8,40 @@ const PORT = process.env.PORT || 3000;
 const CACHE_PATH   = '/tmp/tx-pulse-cache.json';
 const HISTORY_PATH = '/tmp/tx-pulse-history.json';
 
-// How often to re-collect from all sources (milliseconds)
-// Default: 2 hours. Override with REFRESH_INTERVAL_MS env var.
 const REFRESH_INTERVAL_MS = parseInt(process.env.REFRESH_INTERVAL_MS || '') || 2 * 60 * 60 * 1000;
-
-// Keep up to 30 days of snapshots (12 runs/day × 30 = 360 max)
-const MAX_HISTORY = 360;
+const MAX_HISTORY = 360; // 12 runs/day × 30 days
 
 app.use(cors());
 app.use(express.json());
 
-// ── Cache: in-memory + file backup ──
+// ── Upstash Redis (persistent history across restarts/redeploys) ──
+// Falls back to /tmp files when env vars not set (local dev, first deploy)
+let redis = null;
+if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+  try {
+    const { Redis } = await import('@upstash/redis');
+    redis = new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN,
+    });
+    console.log('🔴 Upstash Redis connected — history will persist across restarts');
+  } catch (e) {
+    console.warn('⚠️ Upstash Redis init failed:', e.message, '— falling back to /tmp');
+  }
+} else {
+  console.warn('⚠️ UPSTASH_REDIS_REST_URL/TOKEN not set — history stored in /tmp (lost on restart)');
+}
+
+// ── State ──
 let pulseCache = null;
-let pulseHistory = [];   // rolling array of snapshots
+let pulseHistory = [];
 let isCollecting = false;
 
+// ── Cache (current snapshot) ──
 function loadCache() {
   try {
     if (fs.existsSync(CACHE_PATH)) {
-      const raw = fs.readFileSync(CACHE_PATH, 'utf-8');
-      pulseCache = JSON.parse(raw);
+      pulseCache = JSON.parse(fs.readFileSync(CACHE_PATH, 'utf-8'));
       console.log(`📦 Cache loaded (${pulseCache.cachedAt})`);
     }
   } catch (e) {
@@ -35,30 +49,55 @@ function loadCache() {
   }
 }
 
-function loadHistory() {
-  try {
-    if (fs.existsSync(HISTORY_PATH)) {
-      const raw = fs.readFileSync(HISTORY_PATH, 'utf-8');
-      pulseHistory = JSON.parse(raw);
-      console.log(`📈 History loaded — ${pulseHistory.length} snapshots`);
-    }
-  } catch (e) {
-    console.warn('⚠️ Could not load history:', e.message);
-  }
-}
-
 function saveCache(data) {
   pulseCache = { data, cachedAt: new Date().toISOString() };
+  try { fs.writeFileSync(CACHE_PATH, JSON.stringify(pulseCache)); } catch (_) {}
+}
+
+// ── History (persistent via Upstash, /tmp fallback) ──
+async function loadHistory() {
+  if (redis) {
+    try {
+      const stored = await redis.get('tx-pulse-history');
+      if (stored) {
+        pulseHistory = Array.isArray(stored) ? stored : JSON.parse(stored);
+        console.log(`📈 History loaded from Upstash — ${pulseHistory.length} snapshots`);
+        return;
+      }
+    } catch (e) {
+      console.warn('⚠️ Upstash history load failed:', e.message);
+    }
+  }
+  // File fallback
   try {
-    fs.writeFileSync(CACHE_PATH, JSON.stringify(pulseCache));
+    if (fs.existsSync(HISTORY_PATH)) {
+      pulseHistory = JSON.parse(fs.readFileSync(HISTORY_PATH, 'utf-8'));
+      console.log(`📈 History loaded from /tmp — ${pulseHistory.length} snapshots`);
+    }
   } catch (e) {
-    console.warn('⚠️ Could not write cache:', e.message);
+    console.warn('⚠️ Could not load history from file:', e.message);
   }
 }
 
-function appendHistory(data) {
+async function saveHistory() {
+  if (pulseHistory.length > MAX_HISTORY) {
+    pulseHistory = pulseHistory.slice(pulseHistory.length - MAX_HISTORY);
+  }
+
+  if (redis) {
+    try {
+      await redis.set('tx-pulse-history', JSON.stringify(pulseHistory));
+    } catch (e) {
+      console.warn('⚠️ Upstash history save failed:', e.message);
+    }
+  }
+  // Always mirror to /tmp as a local safety copy
+  try { fs.writeFileSync(HISTORY_PATH, JSON.stringify(pulseHistory)); } catch (_) {}
+}
+
+function appendSnapshot(data) {
   const snapshot = {
-    date:        new Date().toISOString(),
+    date:         new Date().toISOString(),
     overallScore: data.overallScore,
     totalVolume:  data.totalVolume,
     source:       data.source,
@@ -66,14 +105,6 @@ function appendHistory(data) {
     topics:       data.topics.slice(0, 20).map(t => ({ name: t.name, sentiment: t.sentiment, volume: t.volume })),
   };
   pulseHistory.push(snapshot);
-  if (pulseHistory.length > MAX_HISTORY) {
-    pulseHistory = pulseHistory.slice(pulseHistory.length - MAX_HISTORY);
-  }
-  try {
-    fs.writeFileSync(HISTORY_PATH, JSON.stringify(pulseHistory));
-  } catch (e) {
-    console.warn('⚠️ Could not write history:', e.message);
-  }
 }
 
 function cacheAgeMs() {
@@ -83,16 +114,13 @@ function cacheAgeMs() {
 
 // ── Background collection ──
 async function runCollection() {
-  if (isCollecting) {
-    console.log('⏳ Collection already in progress — skipping');
-    return;
-  }
+  if (isCollecting) { console.log('⏳ Collection in progress — skipping'); return; }
   isCollecting = true;
-  console.log(`🔄 Background collection started (interval: ${REFRESH_INTERVAL_MS / 60000}min)`);
+  console.log(`🔄 Collection started (interval: ${REFRESH_INTERVAL_MS / 60000}min)`);
   try {
     const pulse = await fetchTexasPulse();
     if (pulse && pulse.topics && pulse.topics.length > 0) {
-      // ── Calculate deltas vs previous snapshot ──
+      // Calculate deltas vs previous snapshot
       if (pulseHistory.length > 0) {
         const prev = pulseHistory[pulseHistory.length - 1];
         pulse.scoreDelta = Math.round((pulse.overallScore - prev.overallScore) * 1000) / 1000;
@@ -110,21 +138,22 @@ async function runCollection() {
         }
       }
       saveCache(pulse);
-      appendHistory(pulse);
-      console.log(`✅ Cache updated — ${pulse.totalVolume} posts from ${pulse.source}`);
+      appendSnapshot(pulse);
+      await saveHistory();
+      console.log(`✅ Cache updated — ${pulse.totalVolume} posts from ${pulse.source} (${pulseHistory.length} snapshots stored)`);
     } else {
-      console.warn('⚠️ Collection returned no data — keeping existing cache');
+      console.warn('⚠️ No data returned — keeping existing cache');
     }
   } catch (err) {
-    console.error('❌ Background collection error:', err.message);
+    console.error('❌ Collection error:', err.message);
   } finally {
     isCollecting = false;
   }
 }
 
-// Kick off immediately on startup, then on schedule
+// ── Startup ──
 loadCache();
-loadHistory();
+await loadHistory();
 runCollection();
 setInterval(runCollection, REFRESH_INTERVAL_MS);
 
@@ -136,11 +165,10 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString(),
     cachedAt: pulseCache?.cachedAt || null,
     cacheAgeMinutes: isFinite(ageMs) ? Math.round(ageMs / 60000) : null,
-    nextRefreshMinutes: isFinite(ageMs)
-      ? Math.max(0, Math.round((REFRESH_INTERVAL_MS - ageMs) / 60000))
-      : null,
+    nextRefreshMinutes: isFinite(ageMs) ? Math.max(0, Math.round((REFRESH_INTERVAL_MS - ageMs) / 60000)) : null,
     isCollecting,
     historySnapshots: pulseHistory.length,
+    historyBackend: redis ? 'upstash' : 'tmp-file',
   });
 });
 
@@ -151,10 +179,10 @@ app.get('/api/sentiment/history', (req, res) => {
   res.json(filtered);
 });
 
-// ── Ticker embed endpoint (lightweight, CORS-open for LSS embed) ──
+// ── Ticker embed (CORS-open, 5-min CDN cache) ──
 app.get('/api/sentiment/ticker', (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Cache-Control', 'public, max-age=300'); // 5-min CDN cache
+  res.setHeader('Cache-Control', 'public, max-age=300');
 
   if (!pulseCache?.data) {
     return res.status(503).json({ error: true, message: 'No data available yet.' });
@@ -162,8 +190,6 @@ app.get('/api/sentiment/ticker', (req, res) => {
 
   const d = pulseCache.data;
   const fmt = (s) => ((s * 10) >= 0 ? '+' : '') + (s * 10).toFixed(1);
-
-  // Top mover by absolute delta
   const topMover = d.biggestMovers?.[0] || null;
 
   res.json({
@@ -188,23 +214,21 @@ app.get('/api/sentiment/ticker', (req, res) => {
     date: d.date,
     updatedAt: pulseCache.cachedAt,
     sources: 8,
+    historyDays: pulseHistory.length,
     embedUrl: 'https://sentiment.localinsights.ai',
   });
 });
 
 app.get('/api/sentiment/today', (req, res) => {
-  // Always serve cached data immediately — collection happens in background
   if (pulseCache?.data) {
     const ageMs = cacheAgeMs();
-    const isStale = ageMs > REFRESH_INTERVAL_MS * 2; // only flag as stale if >2x interval old
+    const isStale = ageMs > REFRESH_INTERVAL_MS * 2;
     return res.json({
       ...pulseCache.data,
       cachedAt: pulseCache.cachedAt,
       ...(isStale ? { stale: true } : {}),
     });
   }
-
-  // No cache yet — collection just started, come back shortly
   if (isCollecting) {
     return res.status(503).json({
       error: true,
@@ -212,7 +236,6 @@ app.get('/api/sentiment/today', (req, res) => {
       date: new Date().toISOString().split('T')[0],
     });
   }
-
   return res.status(503).json({
     error: true,
     message: 'No data available. Sources may be temporarily unavailable.',
@@ -222,6 +245,7 @@ app.get('/api/sentiment/today', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`✅ TX Sentinel backend on http://localhost:${PORT}`);
-  console.log(`⏱  Refresh interval: every ${REFRESH_INTERVAL_MS / 60000} minutes`);
+  console.log(`⏱  Refresh: every ${REFRESH_INTERVAL_MS / 60000}min`);
   console.log(`📦 Cache: ${pulseCache ? `loaded (${pulseCache.cachedAt})` : 'building...'}`);
+  console.log(`📈 History backend: ${redis ? 'Upstash Redis' : '/tmp file (ephemeral)'}`);
 });

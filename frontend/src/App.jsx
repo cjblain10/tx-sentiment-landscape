@@ -70,7 +70,7 @@ function Particles({ count = 60 }) {
 
 /* ── Overall sparkline ── */
 function OverallSparkline({ history }) {
-  if (!history || history.length < 2) return null;
+  if (!history || history.length === 0) return null;
   const W = 200, H = 40, PAD = 4;
   const scores = history.map(s => s.overallScore);
   const min = Math.min(-0.1, ...scores);
@@ -98,26 +98,40 @@ function OverallSparkline({ history }) {
 
 /* ── Category sparkline from history ── */
 function CategorySparkline({ categoryName, history }) {
-  if (!history || history.length < 2) return null;
+  if (!history || history.length === 0) return null;
   const scores = history
     .map(snap => snap.categories?.find(c => c.name === categoryName)?.sentiment ?? null)
     .filter(v => v !== null);
-  if (scores.length < 2) return null;
+  if (scores.length === 0) return null;
 
   const W = 160, H = 32, PAD = 3;
+  const latest = scores[scores.length - 1];
+  const color = latest >= 0 ? '#10b981' : '#ef4444';
+
+  // Single point — just show a dot on the zero line
+  if (scores.length === 1) {
+    const cx = W / 2;
+    const cy = H / 2;
+    return (
+      <svg width={W} height={H} className="cat-sparkline-svg" style={{ overflow: 'visible' }}>
+        <line x1={PAD} x2={W - PAD} y1={cy} y2={cy} stroke="rgba(255,255,255,0.12)" strokeWidth="1" />
+        <circle cx={cx} cy={cy} r="3" fill={color} opacity="0.85" />
+      </svg>
+    );
+  }
+
   const min = Math.min(-0.05, ...scores);
   const max = Math.max(0.05, ...scores);
   const xScale = i => PAD + (i / (scores.length - 1)) * (W - PAD * 2);
   const yScale = v => H - PAD - ((v - min) / (max - min)) * (H - PAD * 2);
   const zero = yScale(0);
   const pts = scores.map((v, i) => `${xScale(i)},${yScale(v)}`).join(' ');
-  const latest = scores[scores.length - 1];
 
   return (
     <svg width={W} height={H} className="cat-sparkline-svg" style={{ overflow: 'visible' }}>
       <line x1={PAD} x2={W - PAD} y1={zero} y2={zero} stroke="rgba(255,255,255,0.12)" strokeWidth="1" />
-      <polyline points={pts} fill="none" stroke={latest >= 0 ? '#10b981' : '#ef4444'} strokeWidth="1.5" strokeLinejoin="round" opacity="0.85" />
-      <circle cx={xScale(scores.length - 1)} cy={yScale(latest)} r="2.5" fill={latest >= 0 ? '#10b981' : '#ef4444'} />
+      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" opacity="0.85" />
+      <circle cx={xScale(scores.length - 1)} cy={yScale(latest)} r="2.5" fill={color} />
     </svg>
   );
 }
