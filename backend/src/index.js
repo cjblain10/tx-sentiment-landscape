@@ -220,23 +220,6 @@ app.get('/api/sentiment/today', (req, res) => {
   });
 });
 
-// ── Ticker: minimal embed widget endpoint ──
-app.get('/api/sentiment/ticker', (req, res) => {
-  if (!pulseCache?.data) {
-    return res.status(503).json({ error: true, message: 'No data available' });
-  }
-  const d = pulseCache.data;
-  const scaled = Math.round(d.overallScore * 10 * 10) / 10; // -10..10 with 1 decimal
-  const label = d.overallScore >= 0.03 ? 'positive' : d.overallScore <= -0.03 ? 'negative' : 'neutral';
-  res.json({
-    score: scaled,
-    rawScore: d.overallScore,
-    delta: d.scoreDelta || 0,
-    label,
-    updatedAt: pulseCache.cachedAt,
-  });
-});
-
 app.listen(PORT, () => {
   console.log(`✅ TX Sentinel backend on http://localhost:${PORT}`);
   console.log(`⏱  Refresh interval: every ${REFRESH_INTERVAL_MS / 60000} minutes`);
