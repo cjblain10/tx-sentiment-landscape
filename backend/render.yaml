@@ -12,3 +12,7 @@ services:
         value: "false"
       - key: NODE_ENV
         value: production
+      - key: UPSTASH_REDIS_REST_URL
+        value: "https://sincere-sole-53415.upstash.io"
+      - key: UPSTASH_REDIS_REST_TOKEN
+        value: "AdCnAAIncDE1NTBkOGVlN2I2ZDg0Yjk2OTE2MjdiNWM2YzY0YjE4NXAxNTM0MTU"
