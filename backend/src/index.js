@@ -92,6 +92,23 @@ async function runCollection() {
   try {
     const pulse = await fetchTexasPulse();
     if (pulse && pulse.topics && pulse.topics.length > 0) {
+      // ── Calculate deltas vs previous snapshot ──
+      if (pulseHistory.length > 0) {
+        const prev = pulseHistory[pulseHistory.length - 1];
+        pulse.scoreDelta = Math.round((pulse.overallScore - prev.overallScore) * 1000) / 1000;
+        if (prev.categories) {
+          pulse.categories = pulse.categories.map(cat => {
+            const prevCat = prev.categories.find(c => c.name === cat.name);
+            return { ...cat, delta: prevCat ? Math.round((cat.sentiment - prevCat.sentiment) * 1000) / 1000 : 0 };
+          });
+        }
+        if (prev.topics) {
+          pulse.biggestMovers = pulse.biggestMovers.map(mover => {
+            const prevTopic = prev.topics.find(t => t.name === mover.name);
+            return { ...mover, delta: prevTopic ? Math.round((mover.sentiment - prevTopic.sentiment) * 1000) / 1000 : 0 };
+          });
+        }
+      }
       saveCache(pulse);
       appendHistory(pulse);
       console.log(`✅ Cache updated — ${pulse.totalVolume} posts from ${pulse.source}`);
@@ -159,6 +176,23 @@ app.get('/api/sentiment/today', (req, res) => {
     error: true,
     message: 'No data available. Sources may be temporarily unavailable.',
     date: new Date().toISOString().split('T')[0],
+  });
+});
+
+// ── Ticker: minimal embed widget endpoint ──
+app.get('/api/sentiment/ticker', (req, res) => {
+  if (!pulseCache?.data) {
+    return res.status(503).json({ error: true, message: 'No data available' });
+  }
+  const d = pulseCache.data;
+  const scaled = Math.round(d.overallScore * 10 * 10) / 10; // -10..10 with 1 decimal
+  const label = d.overallScore >= 0.03 ? 'positive' : d.overallScore <= -0.03 ? 'negative' : 'neutral';
+  res.json({
+    score: scaled,
+    rawScore: d.overallScore,
+    delta: d.scoreDelta || 0,
+    label,
+    updatedAt: pulseCache.cachedAt,
   });
 });
 

@@ -137,11 +137,13 @@ export function buildResponse(posts, sourceLabel) {
   for (const post of posts) {
     for (const topicName of post.matchedTopics) {
       if (!topicMap[topicName]) {
-        topicMap[topicName] = { sentiments: [], volume: 0, mentions: [], byRegion: {} };
+        topicMap[topicName] = { sentiments: [], volume: 0, mentions: [], byRegion: {}, sourceCounts: {} };
       }
       const t = topicMap[topicName];
       t.sentiments.push(post.sentiment);
       t.volume++;
+      const src = post.source || 'unknown';
+      t.sourceCounts[src] = (t.sourceCounts[src] || 0) + 1;
 
       if (t.mentions.length < 5) {
         t.mentions.push({
@@ -176,6 +178,7 @@ export function buildResponse(posts, sourceLabel) {
       volume: t.volume,
       byRegion,
       topMentions: t.mentions,
+      sourceCounts: t.sourceCounts,
     };
   }).sort((a, b) => b.volume - a.volume);
 
