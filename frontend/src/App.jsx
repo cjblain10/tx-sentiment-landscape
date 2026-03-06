@@ -148,14 +148,21 @@ function App() {
   const [staleInfo, setStaleInfo] = useState(null);
   const [entered, setEntered] = useState(false);
   const [copyMsg, setCopyMsg] = useState('');
+  const [timeRange, setTimeRange] = useState('30D');
+
+  const RANGE_DAYS = { '14D': 14, '30D': 30, 'MAX': 90 };
 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
   useEffect(() => {
-    fetch(`${apiUrl}/api/sentiment/history?days=30`)
+    const days = RANGE_DAYS[timeRange];
+    fetch(`${apiUrl}/api/sentiment/history?days=${days}`)
       .then(r => r.ok ? r.json() : [])
       .then(h => setHistory(h))
       .catch(() => {});
+  }, [timeRange]);
+
+  useEffect(() => {
     fetch(`${apiUrl}/api/sentiment/today`)
       .then(r => r.json())
       .then(d => {
@@ -341,6 +348,20 @@ function App() {
                 </div>
 
                 <OverallSparkline history={history} />
+
+                {/* TIME RANGE FILTER — 14D / 30D / MAX */}
+                <div className="time-filter">
+                  {['14D', '30D', 'MAX'].map(r => (
+                    <button
+                      key={r}
+                      className={`time-chip ${timeRange === r ? 'active' : ''}`}
+                      onClick={() => setTimeRange(r)}
+                    >
+                      {r}
+                    </button>
+                  ))}
+                </div>
+
                 {data.scoreDelta !== undefined && data.scoreDelta !== 0 && (
                   <div className={`overall-delta ${data.scoreDelta > 0 ? 'pos' : 'neg'}`}>
                     {data.scoreDelta > 0 ? '▲' : '▼'}{Math.abs(data.scoreDelta * 10).toFixed(1)} from yesterday

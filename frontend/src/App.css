@@ -394,6 +394,42 @@ body {
 .sparkline-delta.pos { color: #10b981; }
 .sparkline-delta.neg { color: #ef4444; }
 
+/* ── TIME RANGE FILTER PILLS ── */
+.time-filter {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  justify-content: center;
+  margin: 0.5rem 0 0.25rem;
+}
+
+.time-chip {
+  padding: 0.3rem 0.75rem;
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.time-chip:hover {
+  color: var(--text);
+  border-color: var(--accent);
+  background: rgba(59, 130, 246, 0.06);
+}
+
+.time-chip.active {
+  color: #fff;
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.35);
+}
+
 /* Methodology */
 .methodology {
   max-width: 900px;
