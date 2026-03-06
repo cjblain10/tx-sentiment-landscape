@@ -173,11 +173,17 @@ app.get('/api/health', (req, res) => {
 });
 
 app.get('/api/sentiment/history', (req, res) => {
-  const days = Math.min(parseInt(req.query.days || '30'), 30);
+  const days = Math.min(parseInt(req.query.days || '30'), 90);
   const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
   const filtered = pulseHistory.filter(s => new Date(s.date).getTime() >= cutoff);
   res.json(filtered);
 });
+
+// ── Keep-alive ping (self-ping every 14 min to prevent Render free tier sleep) ──
+const SELF_URL = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
+setInterval(() => {
+  fetch(`${SELF_URL}/api/health`).catch(() => {});
+}, 14 * 60 * 1000);
 
 // ── Ticker embed (CORS-open, 5-min CDN cache) ──
 app.get('/api/sentiment/ticker', (req, res) => {
