@@ -744,15 +744,15 @@ function App() {
                 <TrendSparkline topic={selectedIssue} dark />
               </div>
 
-              {/* Sample mentions */}
+              {/* Real mentions from collected data */}
               {topic.topMentions?.length > 0 && (
                 <div className="detail-mentions">
-                  <div className="detail-label" style={{ marginBottom: '0.75rem' }}>Sample Mentions</div>
+                  <div className="detail-label" style={{ marginBottom: '0.75rem' }}>Recent Mentions</div>
                   {topic.topMentions.map((m, i) => (
                     <div key={i} className="mention">
                       <span className="mention-text">&ldquo;{m.text}&rdquo;</span>
                       <span className="mention-src">
-                        {m.source || 'twitter'}
+                        {m.source || 'unknown'}
                         {m.region && regions[m.region] ? ` · ${regions[m.region]}` : ''}
                       </span>
                     </div>

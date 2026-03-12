@@ -55,30 +55,55 @@ export const REGION_LABELS = {
 };
 
 // ── Sentiment word lists ──
+// POSITIVE: Only words that are unambiguously positive in political context.
+// Removed: increase, expand, expanding, fund, funding, pass, passed, signed,
+// approved, working, fix, fixed, access, lower, reduce — these are contextual
+// ("taxes increased" ≠ positive, "bill passed" ≠ positive without knowing the bill)
 const POS_WORDS = [
+  // genuinely positive sentiment
   'good', 'great', 'excellent', 'amazing', 'wonderful', 'fantastic', 'love',
-  'best', 'better', 'improve', 'improvement', 'growth', 'success', 'support',
-  'approve', 'approval', 'progress', 'reform', 'boost', 'benefit', 'benefits',
-  'achieve', 'strong', 'effective', 'efficient', 'help', 'protect', 'protection',
-  'safe', 'safety', 'secure', 'security', 'opportunity', 'win', 'winning',
-  'solution', 'solved', 'invest', 'investment', 'relief', 'lower', 'reduce',
-  'increase', 'expand', 'expanding', 'fund', 'funding', 'pass', 'passed',
-  'signed', 'approved', 'bipartisan', 'working', 'fix', 'fixed', 'restore',
-  'saved', 'saving', 'affordable', 'affordable housing', 'access',
+  'best', 'better', 'improve', 'improvement', 'success', 'support',
+  'progress', 'reform', 'boost', 'benefit', 'benefits',
+  'achieve', 'effective', 'efficient', 'help', 'protect', 'protection',
+  'safe', 'safety', 'opportunity', 'win', 'winning',
+  'solution', 'solved', 'invest', 'investment', 'relief',
+  'bipartisan', 'restore', 'saved', 'saving', 'affordable',
+  // TX-politics positive
+  'thriving', 'booming', 'record low', 'surplus', 'balanced budget',
+  'accountability', 'transparent', 'transparency', 'responsive',
+  'revitalize', 'celebrate', 'milestone', 'breakthrough', 'unanimous',
+  'empowering', 'innovative', 'reward', 'rewarding', 'grateful',
+  'optimistic', 'promising', 'encouraging', 'hopeful',
 ];
 
+// NEGATIVE: Crisis words + everyday political complaint/frustration language
 const NEG_WORDS = [
+  // strong negative
   'bad', 'terrible', 'awful', 'horrible', 'worst', 'hate', 'worse', 'decline',
   'fail', 'failure', 'crisis', 'problem', 'disaster', 'corrupt', 'corruption',
   'scandal', 'broken', 'dangerous', 'threat', 'attack', 'fear', 'collapse',
   'skyrocket', 'unaffordable', 'expensive', 'struggle', 'struggling', 'concern',
   'worried', 'worry', 'alarming', 'frustrated', 'inadequate', 'insufficient',
   'lack', 'missing', 'lost', 'losing', 'damage', 'harm', 'harmful', 'oppose',
-  'reject', 'rejected', 'blocked', 'eliminate', 'closed', 'shutdown', 'evacuate',
+  'reject', 'rejected', 'blocked', 'eliminate', 'shutdown', 'evacuate',
   'flood', 'outage', 'blackout', 'freeze', 'eviction', 'homeless', 'surge',
   'overloaded', 'overcrowded', 'violence', 'crime', 'shooting', 'killed',
-  'died', 'death', 'uninsured', 'cut', 'cuts', 'veto', 'vetoed', 'fail',
+  'died', 'death', 'uninsured', 'cut', 'cuts', 'veto', 'vetoed',
   'failing', 'underfunded', 'gridlock', 'stalled', 'delayed', 'denied',
+  // everyday political frustration (what people actually say online)
+  'ridiculous', 'outrageous', 'absurd', 'embarrassing', 'pathetic', 'shameful',
+  'incompetent', 'negligent', 'reckless', 'wasteful', 'waste',
+  'rigged', 'scam', 'fraud', 'crooked', 'shady', 'sketchy',
+  'angry', 'furious', 'disgusting', 'insane', 'stupid', 'idiotic',
+  'broken promises', 'lied', 'lying', 'misleading', 'coverup',
+  'overpriced', 'gouging', 'ripoff', 'burden', 'overtaxed',
+  'crumbling', 'deteriorating', 'neglected', 'ignored', 'abandoned',
+  'unfair', 'unjust', 'inequality', 'exploited', 'exploitation',
+  'backlog', 'bottleneck', 'dysfunction', 'dysfunctional', 'chaotic',
+  'toxic', 'contaminated', 'pollution', 'polluted',
+  'unaccountable', 'secretive', 'opaque',
+  'bankrupt', 'insolvent', 'deficit', 'shortfall', 'underpaid',
+  'overcrowding', 'understaffed', 'overwhelmed',
 ];
 
 // Negation words that flip sentiment
