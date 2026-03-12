@@ -15,7 +15,16 @@ export const TOPIC_SEEDS = {
   'transportation':    ['highway', 'i-35', 'traffic', 'transit', 'txdot', 'toll road', 'commute', 'high speed rail', 'bus', 'light rail'],
   'gun policy':        ['gun', 'firearm', 'shooting', 'second amendment', '2a', 'nra', 'open carry', 'gun control', 'gun violence'],
   'cost of living':    ['cost of living', 'afford', 'expensive', 'price increase', 'grocery', 'food cost', 'utility bill', 'fees'],
-  'tech & innovation': ['tech', 'ai', 'startup', 'spacex', 'tesla', 'semiconductor', 'data center', 'artificial intelligence'],
+  'tech & innovation': ['tech', 'ai', 'startup', 'spacex', 'tesla', 'semiconductor', 'artificial intelligence'],
+  'government accountability': ['accountability', 'audit', 'oversight', 'inspector general', 'whistleblower', 'mismanagement', 'watchdog', 'ethics commission', 'corruption probe'],
+  'infrastructure':    ['infrastructure', 'bridge', 'road repair', 'utility infrastructure', 'sewer', 'broadband', 'internet access', 'stormwater'],
+  'local control':     ['local control', 'preemption', 'home rule', 'city ordinance', 'county authority', 'municipal authority', 'city council vote'],
+  'thc & hemp':        ['thc', 'hemp', 'cannabis', 'marijuana', 'delta-8', 'delta 8', 'cbd', 'dispensary', 'legalization', 'weed'],
+  'casinos & gambling': ['casino', 'gambling', 'sports betting', 'lottery', 'gaming commission', 'poker', 'slot machine', 'legalized gambling'],
+  'nuclear energy':    ['nuclear', 'nuclear energy', 'nuclear power', 'nuclear plant', 'reactor', 'uranium', 'small modular reactor', 'smr'],
+  'recycling':         ['recycling', 'recycle', 'waste', 'landfill', 'compost', 'litter', 'waste management', 'zero waste'],
+  'public information': ['foia', 'public information', 'open records', 'public records request', 'sunshine law', 'government secrecy', 'redaction', 'tpia'],
+  'ai data centers':   ['data center', 'ai data center', 'hyperscale', 'server farm', 'colocation', 'cloud computing'],
 };
 
 // ── Topic → category mapping ──

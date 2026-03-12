@@ -10,12 +10,41 @@ function fmt(s) {
   return (scaled >= 0 ? '+' : '') + scaled.toFixed(1);
 }
 
+// ── Issue hierarchy ──
+const TOP_ISSUES = [
+  { key: 'healthcare', label: 'Health Care' },
+  { key: 'education', label: 'Education' },
+  { key: 'economy & jobs', label: 'Economy' },
+  { key: 'cost of living', label: 'Cost of Living' },
+  { key: 'property tax', label: 'Property Taxes' },
+  { key: 'energy & grid', label: 'Energy' },
+];
+
+const OTHER_ISSUES = [
+  { key: 'government accountability', label: 'Government Accountability' },
+  { key: 'infrastructure', label: 'Infrastructure' },
+  { key: 'transportation', label: 'Transportation' },
+  { key: 'water & drought', label: 'Water' },
+  { key: 'tech & innovation', label: 'Tech & Innovation' },
+  { key: 'ai data centers', label: 'AI Data Centers' },
+  { key: 'border security', label: 'Border Security' },
+  { key: 'crime & safety', label: 'Crime & Safety' },
+  { key: 'local control', label: 'Local Control' },
+  { key: 'housing', label: 'Housing' },
+  { key: 'thc & hemp', label: 'THC & Hemp' },
+  { key: 'casinos & gambling', label: 'Casinos & Gambling' },
+  { key: 'nuclear energy', label: 'Nuclear Energy' },
+  { key: 'recycling', label: 'Recycling' },
+  { key: 'public information', label: 'Public Info & Transparency' },
+];
+
 // Generate narrative summary from data
-function generateSummary(data) {
-  if (!data || !data.categories) return '';
-  const categories = data.categories;
-  const mostPositive = [...categories].sort((a, b) => b.sentiment - a.sentiment)[0];
-  const mostNegative = [...categories].sort((a, b) => a.sentiment - b.sentiment)[0];
+function generateSummary(data, topics) {
+  if (!data || !topics || topics.length === 0) return '';
+  const sorted = [...topics].filter(t => t.volume > 0);
+  if (sorted.length === 0) return '';
+  const mostPositive = sorted.sort((a, b) => b.sentiment - a.sentiment)[0];
+  const mostNegative = [...sorted].sort((a, b) => a.sentiment - b.sentiment)[0];
   const tone = data.overallScore >= 0.03 ? 'optimistic' :
                data.overallScore <= -0.03 ? 'pessimistic' : 'mixed';
   const toneWords = {
@@ -23,7 +52,13 @@ function generateSummary(data) {
     pessimistic: 'Texans express growing concerns',
     mixed: 'Texans show mixed feelings',
   };
-  return `${toneWords[tone]} as ${mostPositive.name.toLowerCase()} sentiment leads (${fmt(mostPositive.sentiment)}) while ${mostNegative.name.toLowerCase()} trails (${fmt(mostNegative.sentiment)}) across the state this week.`;
+  const posLabel = TOP_ISSUES.find(i => i.key === mostPositive.name)?.label ||
+                   OTHER_ISSUES.find(i => i.key === mostPositive.name)?.label ||
+                   capitalize(mostPositive.name);
+  const negLabel = TOP_ISSUES.find(i => i.key === mostNegative.name)?.label ||
+                   OTHER_ISSUES.find(i => i.key === mostNegative.name)?.label ||
+                   capitalize(mostNegative.name);
+  return `${toneWords[tone]} as ${posLabel.toLowerCase()} sentiment leads (${fmt(mostPositive.sentiment)}) while ${negLabel.toLowerCase()} trails (${fmt(mostNegative.sentiment)}) across the state this week.`;
 }
 
 /* ── Floating Particles ── */
@@ -96,11 +131,11 @@ function OverallSparkline({ history }) {
   );
 }
 
-/* ── Category sparkline from history ── */
-function CategorySparkline({ categoryName, history }) {
+/* ── Issue sparkline from history ── */
+function IssueSparkline({ issueKey, history }) {
   if (!history || history.length === 0) return null;
   const scores = history
-    .map(snap => snap.categories?.find(c => c.name === categoryName)?.sentiment ?? null)
+    .map(snap => snap.topics?.find(t => t.name === issueKey)?.sentiment ?? null)
     .filter(v => v !== null);
   if (scores.length === 0) return null;
 
@@ -108,12 +143,10 @@ function CategorySparkline({ categoryName, history }) {
   const latest = scores[scores.length - 1];
   const color = latest >= 0 ? '#10b981' : '#ef4444';
 
-  // Single point — just show a dot on the zero line
   if (scores.length === 1) {
-    const cx = W / 2;
-    const cy = H / 2;
+    const cx = W / 2, cy = H / 2;
     return (
-      <svg width={W} height={H} className="cat-sparkline-svg" style={{ overflow: 'visible' }}>
+      <svg width={W} height={H} className="issue-sparkline-svg" style={{ overflow: 'visible' }}>
         <line x1={PAD} x2={W - PAD} y1={cy} y2={cy} stroke="rgba(255,255,255,0.12)" strokeWidth="1" />
         <circle cx={cx} cy={cy} r="3" fill={color} opacity="0.85" />
       </svg>
@@ -128,7 +161,7 @@ function CategorySparkline({ categoryName, history }) {
   const pts = scores.map((v, i) => `${xScale(i)},${yScale(v)}`).join(' ');
 
   return (
-    <svg width={W} height={H} className="cat-sparkline-svg" style={{ overflow: 'visible' }}>
+    <svg width={W} height={H} className="issue-sparkline-svg" style={{ overflow: 'visible' }}>
       <line x1={PAD} x2={W - PAD} y1={zero} y2={zero} stroke="rgba(255,255,255,0.12)" strokeWidth="1" />
       <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" opacity="0.85" />
       <circle cx={xScale(scores.length - 1)} cy={yScale(latest)} r="2.5" fill={color} />
@@ -136,12 +169,66 @@ function CategorySparkline({ categoryName, history }) {
   );
 }
 
+/* ── Password Gate ── */
+const ACCESS_HASH = '6a204bd89f3c8348afd5c77c717a097a'; // md5 of 'searle2026'
+
+function md5Hash(str) {
+  // Simple hash check — compare against known hash
+  // We store the password hashed and compare input
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash |= 0;
+  }
+  return hash;
+}
+
+function PasswordGate({ children }) {
+  const [authed, setAuthed] = useState(() => sessionStorage.getItem('lsp_auth') === 'true');
+  const [code, setCode] = useState('');
+  const [error, setError] = useState(false);
+
+  if (authed) return children;
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    if (code.trim().toLowerCase() === 'searle2026') {
+      sessionStorage.setItem('lsp_auth', 'true');
+      setAuthed(true);
+    } else {
+      setError(true);
+      setTimeout(() => setError(false), 2000);
+    }
+  }
+
+  return (
+    <div className="gate">
+      <div className="gate-box">
+        <h1 className="gate-title">LONE STAR PULSE</h1>
+        <p className="gate-subtitle">Texas Public Sentiment Index</p>
+        <form onSubmit={handleSubmit} className="gate-form">
+          <input
+            type="password"
+            className={`gate-input ${error ? 'gate-error' : ''}`}
+            placeholder="Access code"
+            value={code}
+            onChange={e => setCode(e.target.value)}
+            autoFocus
+          />
+          <button type="submit" className="gate-btn">Enter</button>
+        </form>
+        {error && <p className="gate-msg">Invalid access code</p>}
+      </div>
+    </div>
+  );
+}
+
 /* ── App ── */
 function App() {
   const [data, setData] = useState(null);
   const [history, setHistory] = useState([]);
-  const [selectedTopic, setSelectedTopic] = useState(null);
-  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [selectedIssue, setSelectedIssue] = useState(null);
   const [selectedRegion, setSelectedRegion] = useState(null);
   const [loading, setLoading] = useState(true);
   const [dataSource, setDataSource] = useState('demo');
@@ -181,31 +268,35 @@ function App() {
     if (!loading) { const t = setTimeout(() => setEntered(true), 50); return () => clearTimeout(t); }
   }, [loading]);
 
-  const topics = (data?.topics || []).map(t => {
+  // Build a lookup of topic data from the API
+  const topicLookup = {};
+  (data?.topics || []).forEach(t => {
+    topicLookup[t.name] = t;
+  });
+
+  // Get topic data for an issue, applying region filter if active
+  function getIssueData(issueKey) {
+    const t = topicLookup[issueKey];
+    if (!t) return null;
     if (!selectedRegion) return t;
     const rd = t.byRegion?.[selectedRegion];
     if (!rd || rd.volume === 0) return null;
     return { ...t, sentiment: rd.sentiment, volume: rd.volume };
-  }).filter(Boolean).sort((a, b) => b.volume - a.volume);
+  }
 
-  // When a category is selected, filter topic nodes to that category's sub-topics
-  const visibleTopics = selectedCategory
-    ? topics.filter(t => {
-        const cat = data?.categories?.find(c => c.name === selectedCategory);
-        return cat?.topics?.includes(t.name);
-      })
-    : topics;
+  // Top 3 trending topics by volume
+  const trendingTopics = (data?.topics || [])
+    .filter(t => t.volume > 0)
+    .sort((a, b) => b.volume - a.volume)
+    .slice(0, 3);
 
-  const totalVolume = topics.reduce((s, t) => s + t.volume, 0);
+  const allTopics = (data?.topics || []).filter(t => t.volume > 0);
+  const totalVolume = allTopics.reduce((s, t) => s + t.volume, 0);
   const regions = data?.regions || {};
 
   const dateStr = data?.date
     ? new Date(data.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
     : 'Today';
-
-  const handleSelectTopic = useCallback((name) => {
-    setSelectedTopic(prev => prev?.name === name ? null : topics.find(t => t.name === name));
-  }, [topics]);
 
   function handleShare() {
     const url = window.location.href;
@@ -219,17 +310,11 @@ function App() {
 
   function handleExportCSV() {
     if (!data) return;
-    const rows = [['Topic', 'Sentiment Score', 'Volume', 'Category']];
-    data.categories?.forEach(cat => {
-      (cat.topics || []).forEach(topicName => {
-        const t = topics.find(x => x.name === topicName);
-        if (t) rows.push([t.name, (t.sentiment * 10).toFixed(2), t.volume, cat.name]);
-      });
-    });
-    // Add topics not in any category
-    topics.forEach(t => {
-      const inCat = data.categories?.some(c => c.topics?.includes(t.name));
-      if (!inCat) rows.push([t.name, (t.sentiment * 10).toFixed(2), t.volume, '']);
+    const rows = [['Issue', 'Sentiment Score', 'Volume']];
+    [...TOP_ISSUES, ...OTHER_ISSUES].forEach(issue => {
+      const t = topicLookup[issue.key];
+      if (t) rows.push([issue.label, (t.sentiment * 10).toFixed(2), t.volume]);
+      else rows.push([issue.label, '', 0]);
     });
     const csv = rows.map(r => r.map(v => `"${v}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -241,27 +326,66 @@ function App() {
 
   if (loading) {
     return (
-      <div className="loading">
-        <div className="loading-ring" />
-        <div className="loading-text">Reading the room...</div>
-      </div>
+      <PasswordGate>
+        <div className="loading">
+          <div className="loading-ring" />
+          <div className="loading-text">Reading the room...</div>
+        </div>
+      </PasswordGate>
     );
   }
 
   if (dataSource === 'unavailable') {
     return (
-      <div className="loading">
-        <div className="loading-text" style={{ color: '#ef4444' }}>Data sources temporarily unavailable</div>
-        <div className="loading-text" style={{ fontSize: '0.85rem', marginTop: '0.5rem', opacity: 0.6 }}>
-          Reddit, Bluesky, YouTube, and news feeds are retrying. Check back shortly.
+      <PasswordGate>
+        <div className="loading">
+          <div className="loading-text" style={{ color: '#ef4444' }}>Data sources temporarily unavailable</div>
+          <div className="loading-text" style={{ fontSize: '0.85rem', marginTop: '0.5rem', opacity: 0.6 }}>
+            Reddit, Bluesky, YouTube, and news feeds are retrying. Check back shortly.
+          </div>
         </div>
-      </div>
+      </PasswordGate>
     );
   }
 
   return (
+    <PasswordGate>
     <div className="app">
       <Particles />
+
+      {/* ── TICKER BAR ── */}
+      {data && (
+        <div className="ticker-bar">
+          <div className="ticker-track">
+            <div className="ticker-content">
+              {[...TOP_ISSUES, ...OTHER_ISSUES].map(issue => {
+                const td = topicLookup[issue.key];
+                if (!td || td.volume === 0) return null;
+                return (
+                  <span key={issue.key} className="ticker-item">
+                    <span className="ticker-item-name">{issue.label}</span>
+                    <span className={`ticker-item-score ${td.sentiment >= 0 ? 'pos' : 'neg'}`}>
+                      {fmt(td.sentiment)}
+                    </span>
+                  </span>
+                );
+              })}
+              {[...TOP_ISSUES, ...OTHER_ISSUES].map(issue => {
+                const td = topicLookup[issue.key];
+                if (!td || td.volume === 0) return null;
+                return (
+                  <span key={issue.key + '-dup'} className="ticker-item" aria-hidden="true">
+                    <span className="ticker-item-name">{issue.label}</span>
+                    <span className={`ticker-item-score ${td.sentiment >= 0 ? 'pos' : 'neg'}`}>
+                      {fmt(td.sentiment)}
+                    </span>
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       <header className="header">
         <div className="header-left">
@@ -270,7 +394,7 @@ function App() {
             alt="Lone Star Standard"
             className="lss-logo"
           />
-          <span className="logo-divider">×</span>
+          <span className="logo-divider">&times;</span>
           <span className="logo-powered">LocalInsights.ai</span>
         </div>
         <div className="header-center">
@@ -303,208 +427,179 @@ function App() {
         </div>
       )}
 
-      {/* SUMMARY PARAGRAPH — prominent, above the fold */}
+      {/* ── HERO AREA ── */}
       {data && (
-        <div className={`summary-bar ${entered ? 'entered' : ''}`}>
-          <p className="summary-text">{generateSummary(data)}</p>
-        </div>
-      )}
+        <div className={`hero ${entered ? 'entered' : ''}`}>
+          <div className="hero-score">
+            <div className="overall-label">Overall Texas Sentiment</div>
+            <div className={`overall-value ${data.overallScore >= 0 ? 'pos' : 'neg'}`}>
+              {fmt(data.overallScore)}
+            </div>
+            <div className="overall-scale">out of &plusmn;10</div>
 
-      <main className="main">
-        <div className="content-wrapper">
-          {/* LEFT/CENTER: VISUALIZATION */}
-          <div className="viz-area">
-            {/* OVERALL SCORE */}
-            {data && (
-              <div className={`overall-score ${entered ? 'entered' : ''}`}>
-                <div className="overall-label">Overall Texas Sentiment</div>
-                <div className={`overall-value ${data.overallScore >= 0 ? 'pos' : 'neg'}`}>
-                  {fmt(data.overallScore)}
-                </div>
-                <div className="overall-scale">out of ±10</div>
-
-                {/* SENTIMENT SCALE BAR */}
-                <div className="sentiment-bar-wrap">
-                  <div className="sentiment-bar">
-                    <div
-                      className="sentiment-marker"
-                      style={{ left: `${((data.overallScore + 1) / 2) * 100}%` }}
-                    />
-                  </div>
-                  <div className="sentiment-bar-labels">
-                    <span>−10 Very negative</span>
-                    <span>0 Neutral</span>
-                    <span>+10 Very positive</span>
-                  </div>
-                </div>
-
-                {/* PLAIN-LANGUAGE INTERPRETATION */}
-                <div className="sentiment-note">
-                  {data.overallScore >= 0.5 ? 'Clearly positive — online conversation leans optimistic' :
-                   data.overallScore >= 0.15 ? 'Mildly positive — slightly more hopeful than concerned' :
-                   data.overallScore >= -0.15 ? 'Roughly neutral — balanced mix of positive and negative language' :
-                   data.overallScore >= -0.5 ? 'Mildly negative — slightly more concern than optimism' :
-                   'Clearly negative — online conversation leans pessimistic'}
-                </div>
-
-                <OverallSparkline history={history} />
-
-                {/* TIME RANGE FILTER — 14D / 30D / MAX */}
-                <div className="time-filter">
-                  {['14D', '30D', 'MAX'].map(r => (
-                    <button
-                      key={r}
-                      className={`time-chip ${timeRange === r ? 'active' : ''}`}
-                      onClick={() => setTimeRange(r)}
-                    >
-                      {r}
-                    </button>
-                  ))}
-                </div>
-
-                {data.scoreDelta !== undefined && data.scoreDelta !== 0 && (
-                  <div className={`overall-delta ${data.scoreDelta > 0 ? 'pos' : 'neg'}`}>
-                    {data.scoreDelta > 0 ? '▲' : '▼'}{Math.abs(data.scoreDelta * 10).toFixed(1)} from yesterday
-                  </div>
-                )}
-                <div className="overall-meta">
-                  {totalVolume.toLocaleString()} mentions &middot; 8 sources
-                  &nbsp;&middot;&nbsp;
-                  {history.length} {history.length === 1 ? 'snapshot' : 'snapshots'}
-                  {history.length > 0 && (
-                    <> ({Math.max(1, Math.round(history.length / 12))} {Math.round(history.length / 12) === 1 ? 'day' : 'days'} of data)</>
-                  )}
-                </div>
+            <div className="sentiment-bar-wrap">
+              <div className="sentiment-bar">
+                <div
+                  className="sentiment-marker"
+                  style={{ left: `${((data.overallScore + 1) / 2) * 100}%` }}
+                />
               </div>
-            )}
+              <div className="sentiment-bar-labels">
+                <span>&minus;10 Very negative</span>
+                <span>0 Neutral</span>
+                <span>+10 Very positive</span>
+              </div>
+            </div>
 
-            {/* REGION FILTER */}
-            <div className={`region-filter ${entered ? 'entered' : ''}`}>
-              <button
-                className={`region-chip ${!selectedRegion ? 'active' : ''}`}
-                onClick={() => { setSelectedRegion(null); setSelectedTopic(null); }}
-              >
-                All Texas
-              </button>
-              {Object.entries(regions).map(([id, label]) => (
+            <div className="sentiment-note">
+              {data.overallScore >= 0.5 ? 'Clearly positive — online conversation leans optimistic' :
+               data.overallScore >= 0.15 ? 'Mildly positive — slightly more hopeful than concerned' :
+               data.overallScore >= -0.15 ? 'Roughly neutral — balanced mix of positive and negative language' :
+               data.overallScore >= -0.5 ? 'Mildly negative — slightly more concern than optimism' :
+               'Clearly negative — online conversation leans pessimistic'}
+            </div>
+
+            <OverallSparkline history={history} />
+
+            <div className="time-filter">
+              {['14D', '30D', 'MAX'].map(r => (
                 <button
-                  key={id}
-                  className={`region-chip ${selectedRegion === id ? 'active' : ''}`}
-                  onClick={() => { setSelectedRegion(id); setSelectedTopic(null); }}
+                  key={r}
+                  className={`time-chip ${timeRange === r ? 'active' : ''}`}
+                  onClick={() => setTimeRange(r)}
                 >
-                  {label}
+                  {r}
                 </button>
               ))}
             </div>
 
-            {/* 4 CATEGORY CARDS — primary view */}
-            {data?.categories && data.categories.length > 0 && (
-              <div className={`category-grid ${entered ? 'entered' : ''}`}>
-                {data.categories.map((cat, idx) => {
-                  const isPos = cat.sentiment >= 0;
-                  const isSelected = selectedCategory === cat.name;
-                  return (
-                    <button
-                      key={cat.name}
-                      className={`cat-card ${isPos ? 'pos' : 'neg'} ${isSelected ? 'selected' : ''}`}
-                      style={{ '--cat-delay': `${idx * 0.1}s` }}
-                      onClick={() => {
-                        setSelectedCategory(prev => prev === cat.name ? null : cat.name);
-                        setSelectedTopic(null);
-                      }}
-                    >
-                      <div className="cat-card-header">
-                        <span className="cat-card-name">{cat.name}</span>
-                        {cat.delta !== undefined && cat.delta !== 0 && (
-                          <span className={`cat-card-delta ${cat.delta > 0 ? 'pos' : 'neg'}`}>
-                            {cat.delta > 0 ? '▲' : '▼'}{Math.abs(cat.delta * 10).toFixed(1)}
-                          </span>
-                        )}
-                      </div>
-                      <div className={`cat-card-score ${isPos ? 'pos' : 'neg'}`}>
-                        {fmt(cat.sentiment)}
-                      </div>
-                      <CategorySparkline categoryName={cat.name} history={history} />
-                      <div className="cat-card-footer">
-                        <span className="cat-card-vol">{cat.volume.toLocaleString()} mentions</span>
-                        <span className="cat-card-topics">
-                          {(cat.topics || []).map(t => capitalize(t)).join(' · ')}
-                        </span>
-                      </div>
-                    </button>
-                  );
-                })}
+            {data.scoreDelta !== undefined && data.scoreDelta !== 0 && (
+              <div className={`overall-delta ${data.scoreDelta > 0 ? 'pos' : 'neg'}`}>
+                {data.scoreDelta > 0 ? '▲' : '▼'}{Math.abs(data.scoreDelta * 10).toFixed(1)} from yesterday
               </div>
             )}
+            <div className="overall-meta">
+              {totalVolume.toLocaleString()} mentions &middot; 8 sources
+              &nbsp;&middot;&nbsp;
+              {history.length} {history.length === 1 ? 'snapshot' : 'snapshots'}
+              {history.length > 0 && (
+                <> ({Math.max(1, Math.round(history.length / 12))} {Math.round(history.length / 12) === 1 ? 'day' : 'days'} of data)</>
+              )}
+            </div>
+          </div>
 
-            {/* TOPIC DRILL-DOWN HEADER */}
-            {selectedCategory && (
-              <div className="drill-header">
-                <span className="drill-label">Topics in {selectedCategory}</span>
-                <button className="drill-clear" onClick={() => { setSelectedCategory(null); setSelectedTopic(null); }}>
-                  &times; Show All
-                </button>
-              </div>
-            )}
+        </div>
+      )}
 
-            {/* PULSE GRID — topic nodes */}
-            <div className="pulse-grid">
-              {visibleTopics.map((topic, idx) => {
-                const isPos = topic.sentiment >= 0;
-                const intensity = Math.min(Math.abs(topic.sentiment), 1);
-                const isSelected = selectedTopic?.name === topic.name;
+      {/* ── SUMMARY ── */}
+      {data && (
+        <div className={`summary-bar ${entered ? 'entered' : ''}`}>
+          <p className="summary-text">{generateSummary(data, allTopics)}</p>
+        </div>
+      )}
+
+      {/* ── REGION FILTER ── */}
+      <div className={`region-filter ${entered ? 'entered' : ''}`}>
+        <button
+          className={`region-chip ${!selectedRegion ? 'active' : ''}`}
+          onClick={() => { setSelectedRegion(null); setSelectedIssue(null); }}
+        >
+          All Texas
+        </button>
+        {Object.entries(regions).map(([id, label]) => (
+          <button
+            key={id}
+            className={`region-chip ${selectedRegion === id ? 'active' : ''}`}
+            onClick={() => { setSelectedRegion(id); setSelectedIssue(null); }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── MAIN CONTENT ── */}
+      <main className="main">
+        <div className="content-wrapper">
+
+          {/* CENTER: Top 6 Issues */}
+          <div className="center-col">
+            <h2 className="section-heading">Top Issues</h2>
+            <div className="top-issues-grid">
+              {TOP_ISSUES.map((issue, idx) => {
+                const td = getIssueData(issue.key);
+                const hasData = td && td.volume > 0;
+                const isSelected = selectedIssue === issue.key;
                 return (
                   <button
-                    key={topic.name}
-                    className={`node ${isPos ? 'pos' : 'neg'} ${isSelected ? 'selected' : ''} ${entered ? 'entered' : ''}`}
-                    style={{
-                      '--glow': isPos ? '16,185,129' : '239,68,68',
-                      '--intensity': intensity,
-                      '--delay': `${idx * 0.07}s`,
-                      '--pulse-dur': `${2.5 + (1 - intensity) * 2}s`,
-                    }}
-                    onClick={() => handleSelectTopic(topic.name)}
+                    key={issue.key}
+                    className={`top-issue-card ${hasData ? (td.sentiment >= 0 ? 'pos' : 'neg') : 'no-data'} ${isSelected ? 'selected' : ''} ${entered ? 'entered' : ''}`}
+                    style={{ '--card-delay': `${idx * 0.08}s` }}
+                    onClick={() => hasData && setSelectedIssue(isSelected ? null : issue.key)}
                   >
-                    <div className="node-ring" />
-                    <div className="node-inner">
-                      <span className="node-name">{capitalize(topic.name)}</span>
-                      <span className="node-score">{fmt(topic.sentiment)}</span>
-                      <span className="node-vol">{topic.volume.toLocaleString()} mentions</span>
+                    <div className="top-issue-header">
+                      <span className="top-issue-name">{issue.label}</span>
+                      {hasData && td.delta !== undefined && td.delta !== 0 && (
+                        <span className={`top-issue-delta ${td.delta > 0 ? 'pos' : 'neg'}`}>
+                          {td.delta > 0 ? '▲' : '▼'}{Math.abs(td.delta * 10).toFixed(1)}
+                        </span>
+                      )}
                     </div>
+                    {hasData ? (
+                      <>
+                        <div className={`top-issue-score ${td.sentiment >= 0 ? 'pos' : 'neg'}`}>
+                          {fmt(td.sentiment)}
+                        </div>
+                        <IssueSparkline issueKey={issue.key} history={history} />
+                        <div className="top-issue-footer">
+                          <span className="top-issue-vol">{td.volume.toLocaleString()} mentions</span>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="top-issue-empty">
+                        <div className="empty-score">--</div>
+                        <div className="empty-bar" />
+                        <span className="empty-label">Collecting data</span>
+                      </div>
+                    )}
                   </button>
                 );
               })}
             </div>
           </div>
 
-          {/* RIGHT SIDEBAR */}
+          {/* RIGHT SIDEBAR: Other Issues */}
           <div className="sidebar">
-            {/* BIGGEST SWINGS */}
-            {data?.biggestMovers && data.biggestMovers.length > 0 && (
-              <div className={`context-box movers-box ${entered ? 'entered' : ''}`}>
-                <h3 className="context-title">Biggest Swings Today</h3>
-                <div className="context-list">
-                  {data.biggestMovers.map((topic, idx) => {
-                    const isPos = topic.sentiment >= 0;
-                    const deltaIsPos = topic.delta > 0;
-                    return (
-                      <div key={topic.name} className="context-item" style={{ '--delay': `${idx * 0.08}s` }}>
-                        <div className="context-item-header">
-                          <span className="context-item-name">{capitalize(topic.name)}</span>
-                          <span className={`context-item-delta ${deltaIsPos ? 'pos' : 'neg'}`}>
-                            {deltaIsPos ? '▲' : '▼'}{Math.abs(topic.delta * 10).toFixed(1)}
-                          </span>
-                        </div>
-                        <div className={`context-item-score ${isPos ? 'pos' : 'neg'}`}>
-                          {fmt(topic.sentiment)}
-                        </div>
-                        <div className="context-item-meta">{topic.volume.toLocaleString()} mentions</div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+            <h2 className="section-heading">Other Issues</h2>
+            <div className="other-issues-grid">
+              {OTHER_ISSUES.map((issue, idx) => {
+                const td = getIssueData(issue.key);
+                const hasData = td && td.volume > 0;
+                const isSelected = selectedIssue === issue.key;
+                return (
+                  <button
+                    key={issue.key}
+                    className={`mini-card ${hasData ? (td.sentiment >= 0 ? 'pos' : 'neg') : 'no-data'} ${isSelected ? 'selected' : ''} ${entered ? 'entered' : ''}`}
+                    style={{ '--row-delay': `${idx * 0.04}s` }}
+                    onClick={() => hasData && setSelectedIssue(isSelected ? null : issue.key)}
+                  >
+                    <span className="mini-card-name">{issue.label}</span>
+                    {hasData ? (
+                      <>
+                        <span className={`mini-card-score ${td.sentiment >= 0 ? 'pos' : 'neg'}`}>
+                          {fmt(td.sentiment)}
+                        </span>
+                        <span className="mini-card-vol">{td.volume.toLocaleString()} mentions</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="mini-card-score no-data">--</span>
+                        <span className="mini-card-vol no-data">Collecting data</span>
+                      </>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
 
             {/* SOURCE ATTRIBUTION */}
             <div className={`context-box source-box ${entered ? 'entered' : ''}`}>
@@ -519,7 +614,7 @@ function App() {
 
             {/* SHARE & EXPORT */}
             <div className={`context-box share-box ${entered ? 'entered' : ''}`}>
-              <h3 className="context-title">Share & Export</h3>
+              <h3 className="context-title">Share &amp; Export</h3>
               <div className="share-actions">
                 <button className="share-action-btn" onClick={handleShare}>
                   {copyMsg ? '✓ Link copied!' : '⤴ Copy link'}
@@ -536,93 +631,96 @@ function App() {
                   {'</>'} API &middot; Ticker embed
                 </a>
               </div>
-              <p className="source-meta" style={{ marginTop: '0.75rem' }}>
-                Embed the ticker on any page via the JSON API endpoint.
-              </p>
             </div>
           </div>
         </div>
 
-        {/* DETAIL PANEL — topic drill-down */}
-        {selectedTopic && (
-          <section className="detail" key={selectedTopic.name}>
-            <div className="detail-top">
-              <h3>{capitalize(selectedTopic.name)}</h3>
-              <button className="detail-close" onClick={() => setSelectedTopic(null)}>&times;</button>
-            </div>
-            <div className="detail-nums">
-              <div className="detail-num">
-                <span className={`detail-big ${selectedTopic.sentiment >= 0 ? 'pos' : 'neg'}`}>
-                  {fmt(selectedTopic.sentiment)}
-                </span>
-                <span className="detail-label">Sentiment</span>
+        {/* DETAIL PANEL — issue drill-down */}
+        {selectedIssue && topicLookup[selectedIssue] && (() => {
+          const topic = topicLookup[selectedIssue];
+          const label = TOP_ISSUES.find(i => i.key === selectedIssue)?.label ||
+                        OTHER_ISSUES.find(i => i.key === selectedIssue)?.label ||
+                        capitalize(selectedIssue);
+          return (
+            <section className="detail" key={selectedIssue}>
+              <div className="detail-top">
+                <h3>{label}</h3>
+                <button className="detail-close" onClick={() => setSelectedIssue(null)}>&times;</button>
               </div>
-              <div className="detail-num">
-                <span className="detail-big">{selectedTopic.volume.toLocaleString()}</span>
-                <span className="detail-label">Mentions</span>
-              </div>
-            </div>
-
-            {/* Regional breakdown */}
-            {!selectedRegion && selectedTopic.byRegion && Object.keys(selectedTopic.byRegion).length > 0 && (
-              <div className="detail-regions">
-                <div className="detail-label" style={{ marginBottom: '0.75rem' }}>By Region</div>
-                <div className="region-bars">
-                  {Object.entries(selectedTopic.byRegion)
-                    .filter(([, rd]) => rd.volume > 0)
-                    .sort((a, b) => b[1].volume - a[1].volume)
-                    .map(([regId, rd]) => (
-                      <div key={regId} className="region-bar-row">
-                        <span className="region-bar-label">{regions[regId] || regId}</span>
-                        <div className="region-bar-track">
-                          <div
-                            className={`region-bar-fill ${rd.sentiment >= 0 ? 'pos' : 'neg'}`}
-                            style={{ width: `${Math.min(Math.abs(rd.sentiment) * 1000, 100)}%` }}
-                          />
-                        </div>
-                        <span className={`region-bar-value ${rd.sentiment >= 0 ? 'pos' : 'neg'}`}>
-                          {fmt(rd.sentiment)}
-                        </span>
-                        <span className="region-bar-vol">{rd.volume}</span>
-                      </div>
-                    ))}
+              <div className="detail-nums">
+                <div className="detail-num">
+                  <span className={`detail-big ${topic.sentiment >= 0 ? 'pos' : 'neg'}`}>
+                    {fmt(topic.sentiment)}
+                  </span>
+                  <span className="detail-label">Sentiment</span>
+                </div>
+                <div className="detail-num">
+                  <span className="detail-big">{topic.volume.toLocaleString()}</span>
+                  <span className="detail-label">Mentions</span>
                 </div>
               </div>
-            )}
 
-            {/* 30-day trend */}
-            <div className="detail-trend">
-              <TrendSparkline topic={selectedTopic.name} dark />
-            </div>
-
-            {/* Sample mentions */}
-            {selectedTopic.topMentions?.length > 0 && (
-              <div className="detail-mentions">
-                <div className="detail-label" style={{ marginBottom: '0.75rem' }}>Sample Mentions</div>
-                {selectedTopic.topMentions.map((m, i) => (
-                  <div key={i} className="mention">
-                    <span className="mention-text">&ldquo;{m.text}&rdquo;</span>
-                    <span className="mention-src">
-                      {m.source || 'twitter'}
-                      {m.region && regions[m.region] ? ` · ${regions[m.region]}` : ''}
-                    </span>
+              {/* Regional breakdown */}
+              {!selectedRegion && topic.byRegion && Object.keys(topic.byRegion).length > 0 && (
+                <div className="detail-regions">
+                  <div className="detail-label" style={{ marginBottom: '0.75rem' }}>By Region</div>
+                  <div className="region-bars">
+                    {Object.entries(topic.byRegion)
+                      .filter(([, rd]) => rd.volume > 0)
+                      .sort((a, b) => b[1].volume - a[1].volume)
+                      .map(([regId, rd]) => (
+                        <div key={regId} className="region-bar-row">
+                          <span className="region-bar-label">{regions[regId] || regId}</span>
+                          <div className="region-bar-track">
+                            <div
+                              className={`region-bar-fill ${rd.sentiment >= 0 ? 'pos' : 'neg'}`}
+                              style={{ width: `${Math.min(Math.abs(rd.sentiment) * 1000, 100)}%` }}
+                            />
+                          </div>
+                          <span className={`region-bar-value ${rd.sentiment >= 0 ? 'pos' : 'neg'}`}>
+                            {fmt(rd.sentiment)}
+                          </span>
+                          <span className="region-bar-vol">{rd.volume}</span>
+                        </div>
+                      ))}
                   </div>
-                ))}
+                </div>
+              )}
+
+              {/* 30-day trend */}
+              <div className="detail-trend">
+                <TrendSparkline topic={selectedIssue} dark />
               </div>
-            )}
-          </section>
-        )}
+
+              {/* Sample mentions */}
+              {topic.topMentions?.length > 0 && (
+                <div className="detail-mentions">
+                  <div className="detail-label" style={{ marginBottom: '0.75rem' }}>Sample Mentions</div>
+                  {topic.topMentions.map((m, i) => (
+                    <div key={i} className="mention">
+                      <span className="mention-text">&ldquo;{m.text}&rdquo;</span>
+                      <span className="mention-src">
+                        {m.source || 'twitter'}
+                        {m.region && regions[m.region] ? ` · ${regions[m.region]}` : ''}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          );
+        })()}
       </main>
 
       <section className="methodology">
         <details>
           <summary>How scores are calculated</summary>
           <div className="methodology-body">
-            <p><strong>What the score means:</strong> Scores run from −10 (strongly negative) to +10 (strongly positive), with 0 as neutral. A score of +0.4 means slightly more positive language than negative across all sources — typical for everyday political discourse, which tends toward measured or mixed framing.</p>
-            <p><strong>Data sources (8 total):</strong> Reddit (r/Texas, r/Houston, r/Austin + 10 subreddits), Bluesky, Mastodon, YouTube comments, Google Trends (TX), Texas Tribune / Texas Observer / Texas Standard / Texas Scorecard / Texas Monthly (RSS), Breitbart Texas / Texas Policy Foundation / TX Right to Life (conservative RSS), and local TV news (KHOU, KVUE, WFAA, KENS5, KXAN). Refreshed every 2 hours.</p>
-            <p><strong>Sentiment method:</strong> Each post is scored by counting positive and negative words from a Texas-politics vocabulary. Negation is handled — &ldquo;not good&rdquo; counts as negative. The overall score is weighted by engagement (upvotes, likes, comment count) so high-engagement posts carry more weight.</p>
-            <p><strong>4 categories:</strong> Topics are grouped into Cost of Living (housing, property tax), Economy (economy &amp; jobs), Healthcare, and Education. Category scores are volume-weighted averages of their constituent topics.</p>
-            <p><strong>What it isn&rsquo;t:</strong> This is not a poll. It reflects the language people use online, not their voting intent. Sources skew toward politically engaged users. Best read as a directional signal — what issues are generating heat, and whether the language leans positive or negative.</p>
+            <p><strong>What the score means:</strong> Scores run from &minus;10 (strongly negative) to +10 (strongly positive), with 0 as neutral. A score of +0.4 means slightly more positive language than negative across all sources — typical for everyday political discourse.</p>
+            <p><strong>Data sources (8 total):</strong> Reddit (10+ subreddits), Bluesky, Mastodon, YouTube comments, Google Trends (TX), Texas Tribune / Texas Observer / Texas Standard / Texas Scorecard / Texas Monthly (RSS), Breitbart Texas / Texas Policy Foundation / TX Right to Life (conservative RSS), and local TV news (KHOU, KVUE, WFAA, KENS5, KXAN). Refreshed every 2 hours.</p>
+            <p><strong>21 tracked issues:</strong> 6 top issues (Health Care, Education, Economy, Cost of Living, Property Taxes, Energy) plus 15 additional issues covering government accountability, infrastructure, border security, emerging topics like THC &amp; Hemp, nuclear energy, casinos &amp; gambling, and more.</p>
+            <p><strong>Sentiment method:</strong> Each post is scored by counting positive and negative words from a Texas-politics vocabulary. Negation is handled — &ldquo;not good&rdquo; counts as negative. The overall score is weighted by engagement (upvotes, likes, comment count).</p>
+            <p><strong>What it isn&rsquo;t:</strong> This is not a poll. It reflects the language people use online, not voting intent. Best read as a directional signal — what issues are generating heat, and whether the language leans positive or negative.</p>
           </div>
         </details>
       </section>
@@ -638,6 +736,7 @@ function App() {
         </span>
       </footer>
     </div>
+    </PasswordGate>
   );
 }
 

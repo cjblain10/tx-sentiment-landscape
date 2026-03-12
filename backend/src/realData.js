@@ -6,6 +6,7 @@ import { collectYouTubeVideos }     from './collectors/youtube.js';
 import { collectTruthSocialPosts }  from './collectors/truthsocial.js';
 import { collectGoogleTrends }      from './collectors/trends.js';
 import { collectThreadsPosts }      from './collectors/threads.js';
+import { collectXPosts }            from './collectors/x.js';
 import { buildResponse }            from './collectors/shared.js';
 
 export async function fetchTexasPulse() {
@@ -20,6 +21,7 @@ export async function fetchTexasPulse() {
     collectTruthSocialPosts(),
     collectGoogleTrends(),
     collectThreadsPosts(),
+    collectXPosts(),
   ]);
 
   const [
@@ -31,6 +33,7 @@ export async function fetchTexasPulse() {
     truthPosts,
     trendPosts,
     threadsPosts,
+    xPosts,
   ] = results.map(r => (r.status === 'fulfilled' ? r.value : []));
 
   const all = [
@@ -42,6 +45,7 @@ export async function fetchTexasPulse() {
     ...truthPosts,
     ...trendPosts,
     ...threadsPosts,
+    ...xPosts,
   ];
 
   const counts = {
@@ -53,6 +57,7 @@ export async function fetchTexasPulse() {
     conservativenews: truthPosts.length,
     trends:          trendPosts.length,
     localnews:       threadsPosts.length,
+    x:               xPosts.length,
   };
 
   console.log(
