@@ -10,6 +10,18 @@ function fmt(s) {
   return (scaled >= 0 ? '+' : '') + scaled.toFixed(1);
 }
 
+// Convert raw sentiment (-1..1) to plain English tone label + emoji
+function toneLabel(s) {
+  const v = s * 10;
+  if (v <= -5)  return { label: 'Very Negative',       emoji: '🔴', color: '#ef4444', short: 'Crisis-level concern' };
+  if (v <= -2)  return { label: 'Negative',            emoji: '🟠', color: '#f97316', short: 'More worry than hope' };
+  if (v <= -0.5) return { label: 'Slightly Negative',  emoji: '🟡', color: '#eab308', short: 'Leaning concerned' };
+  if (v < 0.5)  return { label: 'Neutral',             emoji: '⚪', color: '#94a3b8', short: 'Balanced — no strong lean' };
+  if (v < 2)    return { label: 'Slightly Positive',   emoji: '🟢', color: '#22c55e', short: 'Leaning hopeful' };
+  if (v < 5)    return { label: 'Positive',            emoji: '💚', color: '#10b981', short: 'More optimism than concern' };
+  return         { label: 'Very Positive',             emoji: '🟩', color: '#00ff88', short: 'Strong optimism' };
+}
+
 // ── Issue hierarchy ──
 const TOP_ISSUES = [
   { key: 'healthcare', label: 'Health Care' },
@@ -432,31 +444,35 @@ function App() {
         <div className={`hero ${entered ? 'entered' : ''}`}>
           <div className="hero-score">
             <div className="overall-label">Overall Texas Sentiment</div>
-            <div className={`overall-value ${data.overallScore >= 0 ? 'pos' : 'neg'}`}>
-              {fmt(data.overallScore)}
+            <div className="tone-hero">
+              <span className="tone-emoji">{toneLabel(data.overallScore).emoji}</span>
+              <span className="tone-word" style={{ color: toneLabel(data.overallScore).color }}>
+                {toneLabel(data.overallScore).label}
+              </span>
             </div>
-            <div className="overall-scale">out of &plusmn;10</div>
+            <div className={`overall-value ${data.overallScore >= 0 ? 'pos' : 'neg'}`}>
+              {fmt(data.overallScore)} <span className="score-scale">/ 10</span>
+            </div>
 
-            <div className="sentiment-bar-wrap">
-              <div className="sentiment-bar">
+            <div className="sentiment-gauge-wrap">
+              <div className="sentiment-gauge">
+                <div className="gauge-zone gauge-neg" />
+                <div className="gauge-zone gauge-mid" />
+                <div className="gauge-zone gauge-pos" />
                 <div
-                  className="sentiment-marker"
+                  className="gauge-needle"
                   style={{ left: `${((data.overallScore + 1) / 2) * 100}%` }}
                 />
               </div>
-              <div className="sentiment-bar-labels">
-                <span>&minus;10 Very negative</span>
-                <span>0 Neutral</span>
-                <span>+10 Very positive</span>
+              <div className="gauge-labels">
+                <span>Negative</span>
+                <span>Neutral</span>
+                <span>Positive</span>
               </div>
             </div>
 
             <div className="sentiment-note">
-              {data.overallScore >= 0.5 ? 'Clearly positive — online conversation leans optimistic' :
-               data.overallScore >= 0.15 ? 'Mildly positive — slightly more hopeful than concerned' :
-               data.overallScore >= -0.15 ? 'Roughly neutral — balanced mix of positive and negative language' :
-               data.overallScore >= -0.5 ? 'Mildly negative — slightly more concern than optimism' :
-               'Clearly negative — online conversation leans pessimistic'}
+              {toneLabel(data.overallScore).short}
             </div>
 
             <OverallSparkline history={history} />
@@ -495,6 +511,39 @@ function App() {
       {data && (
         <div className={`summary-bar ${entered ? 'entered' : ''}`}>
           <p className="summary-text">{generateSummary(data, allTopics)}</p>
+        </div>
+      )}
+
+      {/* ── HOW TO READ THIS ── */}
+      {data && (
+        <div className={`reading-key ${entered ? 'entered' : ''}`}>
+          <div className="reading-key-title">How to read these scores</div>
+          <div className="reading-key-grid">
+            <div className="key-item"><span className="key-dot" style={{background:'#ef4444'}} />
+              <div><strong>-5 to -10 · Very Negative</strong><br/>Crisis dominates — a major event is driving anger or fear</div>
+            </div>
+            <div className="key-item"><span className="key-dot" style={{background:'#f97316'}} />
+              <div><strong>-2 to -5 · Negative</strong><br/>Concerns outweigh optimism on this issue</div>
+            </div>
+            <div className="key-item"><span className="key-dot" style={{background:'#eab308'}} />
+              <div><strong>-0.5 to -2 · Slightly Negative</strong><br/>Mild worry — something is drawing criticism</div>
+            </div>
+            <div className="key-item"><span className="key-dot" style={{background:'#94a3b8'}} />
+              <div><strong>-0.5 to +0.5 · Neutral</strong><br/>Normal baseline — no strong lean either way</div>
+            </div>
+            <div className="key-item"><span className="key-dot" style={{background:'#22c55e'}} />
+              <div><strong>+0.5 to +2 · Slightly Positive</strong><br/>Mild optimism — good news or reform talk</div>
+            </div>
+            <div className="key-item"><span className="key-dot" style={{background:'#10b981'}} />
+              <div><strong>+2 to +5 · Positive</strong><br/>Clear optimism — an issue is generating hope</div>
+            </div>
+            <div className="key-item"><span className="key-dot" style={{background:'#00ff88'}} />
+              <div><strong>+5 to +10 · Very Positive</strong><br/>Rare — usually a specific breakthrough or relief event</div>
+            </div>
+          </div>
+          <div className="reading-key-footer">
+            Scores are based on keyword analysis of {data.totalVolume?.toLocaleString()} social media posts, news articles, and public comments from 9 sources across Texas. This measures <em>language tone</em>, not public opinion polls. Most scores stay between -2 and +2 — that's normal.
+          </div>
         </div>
       )}
 
@@ -548,6 +597,9 @@ function App() {
                       <>
                         <div className={`top-issue-score ${td.sentiment >= 0 ? 'pos' : 'neg'}`}>
                           {fmt(td.sentiment)}
+                        </div>
+                        <div className="top-issue-tone" style={{ color: toneLabel(td.sentiment).color }}>
+                          {toneLabel(td.sentiment).emoji} {toneLabel(td.sentiment).label}
                         </div>
                         <IssueSparkline issueKey={issue.key} history={history} />
                         <div className="top-issue-footer">
