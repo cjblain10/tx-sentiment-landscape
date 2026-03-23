@@ -14,6 +14,34 @@ const MAX_HISTORY = 360; // 12 runs/day × 30 days
 app.use(cors());
 app.use(express.json());
 
+// ── API Key Authentication ──
+const API_KEYS = {
+  data:  process.env.API_KEY_DATA  || 'txs_data_94313aabf9fcea306befa72ef4419075',
+  embed: process.env.API_KEY_EMBED || 'txs_embed_089e6a982d263fcc4d90c525fd0a1c33',
+};
+
+function extractKey(req) {
+  // Check Authorization header first, then query param
+  const auth = req.headers.authorization;
+  if (auth && auth.startsWith('Bearer ')) return auth.slice(7);
+  return req.query.key || null;
+}
+
+function requireKey(...allowedTypes) {
+  return (req, res, next) => {
+    const key = extractKey(req);
+    if (!key) {
+      return res.status(401).json({ error: true, message: 'API key required. Pass via ?key= or Authorization: Bearer header.' });
+    }
+    const valid = allowedTypes.some(type => key === API_KEYS[type]);
+    if (!valid) {
+      return res.status(403).json({ error: true, message: 'Invalid API key.' });
+    }
+    req.apiKeyType = allowedTypes.find(type => key === API_KEYS[type]);
+    next();
+  };
+}
+
 // ── Upstash Redis (persistent history across restarts/redeploys) ──
 // Falls back to /tmp files when env vars not set (local dev, first deploy)
 let redis = null;
@@ -172,7 +200,7 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-app.get('/api/sentiment/history', (req, res) => {
+app.get('/api/sentiment/history', requireKey('data', 'embed'), (req, res) => {
   const days = Math.min(parseInt(req.query.days || '30'), 90);
   const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
   const filtered = pulseHistory.filter(s => new Date(s.date).getTime() >= cutoff);
@@ -225,7 +253,7 @@ app.get('/api/sentiment/ticker', (req, res) => {
   });
 });
 
-app.get('/api/sentiment/today', (req, res) => {
+app.get('/api/sentiment/today', requireKey('data', 'embed'), (req, res) => {
   if (pulseCache?.data) {
     const ageMs = cacheAgeMs();
     const isStale = ageMs > REFRESH_INTERVAL_MS * 2;
@@ -247,6 +275,34 @@ app.get('/api/sentiment/today', (req, res) => {
     message: 'No data available. Sources may be temporarily unavailable.',
     date: new Date().toISOString().split('T')[0],
   });
+});
+
+// ── Embed endpoint (serves a framed dashboard for external sites) ──
+app.get('/api/embed', requireKey('embed'), (req, res) => {
+  res.setHeader('Content-Type', 'text/html');
+  res.setHeader('X-Frame-Options', 'ALLOWALL');
+  res.send(`<!DOCTYPE html>
+<html><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>body{margin:0;overflow:hidden}iframe{width:100%;height:100vh;border:none}</style>
+</head><body>
+<iframe src="https://sentiment.localinsights.ai" allow="fullscreen"></iframe>
+</body></html>`);
+});
+
+// ── Key info endpoint (for admins to verify keys work) ──
+app.get('/api/key/verify', (req, res) => {
+  const key = extractKey(req);
+  if (!key) return res.status(401).json({ valid: false, message: 'No key provided.' });
+
+  if (key === API_KEYS.data) {
+    return res.json({ valid: true, type: 'data', access: ['sentiment/today', 'sentiment/history', 'sentiment/ticker', 'health'] });
+  }
+  if (key === API_KEYS.embed) {
+    return res.json({ valid: true, type: 'embed', access: ['sentiment/today', 'sentiment/history', 'embed'] });
+  }
+  return res.status(403).json({ valid: false, message: 'Invalid key.' });
 });
 
 app.listen(PORT, () => {

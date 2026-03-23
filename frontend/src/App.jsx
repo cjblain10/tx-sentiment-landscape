@@ -252,17 +252,18 @@ function App() {
   const RANGE_DAYS = { '14D': 14, '30D': 30, 'MAX': 90 };
 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+  const apiKey = import.meta.env.VITE_API_KEY || 'txs_embed_089e6a982d263fcc4d90c525fd0a1c33';
 
   useEffect(() => {
     const days = RANGE_DAYS[timeRange];
-    fetch(`${apiUrl}/api/sentiment/history?days=${days}`)
+    fetch(`${apiUrl}/api/sentiment/history?days=${days}&key=${apiKey}`)
       .then(r => r.ok ? r.json() : [])
       .then(h => setHistory(h))
       .catch(() => {});
   }, [timeRange]);
 
   useEffect(() => {
-    fetch(`${apiUrl}/api/sentiment/today`)
+    fetch(`${apiUrl}/api/sentiment/today?key=${apiKey}`)
       .then(r => r.json())
       .then(d => {
         if (d.error) { setData(null); setDataSource('unavailable'); }
