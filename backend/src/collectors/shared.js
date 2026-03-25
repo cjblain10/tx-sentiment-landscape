@@ -234,12 +234,15 @@ export function buildResponse(posts, sourceLabel) {
     delta: 0,
   }));
 
-  // ── Overall score (engagement-weighted) ──
-  const totalEngagement = posts.reduce((s, p) => s + p.engagement, 0);
-  const weightedSentiment = posts.reduce((s, p) => s + p.sentiment * p.engagement, 0);
-  const overallScore = totalEngagement > 0
-    ? Math.round((weightedSentiment / totalEngagement) * 100) / 100
-    : Math.round((posts.reduce((s, p) => s + p.sentiment, 0) / posts.length) * 100) / 100;
+  // ── Overall score (volume-weighted category average) ──
+  // Previously engagement-weighted across all posts, which diluted signal to ~0.
+  // Now averages category scores weighted by each category's post volume,
+  // producing a score that reflects what the category breakdown actually shows.
+  const catsWithVolume = categories.filter(c => c.volume > 0);
+  const totalCatVolume = catsWithVolume.reduce((s, c) => s + c.volume, 0);
+  const overallScore = totalCatVolume > 0
+    ? Math.round((catsWithVolume.reduce((s, c) => s + c.sentiment * c.volume, 0) / totalCatVolume) * 1000) / 1000
+    : 0;
 
   // ── Biggest movers: topics with most mentions ──
   const biggestMovers = topics.slice(0, 5).map(t => ({

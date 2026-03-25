@@ -359,6 +359,42 @@ body {
   box-shadow: none;
 }
 
+/* ── METHODOLOGY NOTE ── */
+.methodology-note {
+  position: fixed;
+  top: 70px;
+  right: 16px;
+  z-index: 100;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  max-width: 260px;
+  padding: 8px 12px;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 6px;
+  font-family: var(--sans);
+  font-size: 0.6rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+  opacity: 0.7;
+  transition: opacity 300ms ease;
+}
+.methodology-note:hover {
+  opacity: 1;
+  border-color: rgba(59, 130, 246, 0.4);
+}
+.method-icon {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  color: var(--accent);
+  margin-top: 1px;
+}
+.method-text {
+  color: var(--text-dim);
+}
+
 /* ── STATUS BANNER ── */
 .status-banner {
   text-align: center;

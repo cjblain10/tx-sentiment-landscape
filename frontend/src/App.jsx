@@ -430,6 +430,15 @@ function App() {
         </div>
       </header>
 
+      {/* Methodology note */}
+      <div className="methodology-note">
+        <span className="method-icon">ℹ</span>
+        <span className="method-text">
+          Overall score = volume-weighted average of category scores.
+          <br />Updated Mar 2026 — previously engagement-weighted, which diluted small signals to zero.
+        </span>
+      </div>
+
       {(staleInfo || dataSource === 'unavailable') && (
         <div className={`status-banner ${staleInfo ? 'stale' : 'demo'}`}>
           {staleInfo ? (
