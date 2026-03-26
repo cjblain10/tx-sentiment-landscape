@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import fs from 'fs';
-import { fetchTexasPulse } from './realData.js';
+import { fetchTexasPulse, collectorDiagnostics } from './realData.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -247,7 +247,7 @@ app.get('/api/sentiment/ticker', (req, res) => {
     } : null,
     date: d.date,
     updatedAt: pulseCache.cachedAt,
-    sources: 8,
+    sources: collectorDiagnostics.activeSources || 8,
     historyDays: pulseHistory.length,
     embedUrl: 'https://sentiment.localinsights.ai',
   });
@@ -303,6 +303,18 @@ app.get('/api/key/verify', (req, res) => {
     return res.json({ valid: true, type: 'embed', access: ['sentiment/today', 'sentiment/history', 'embed'] });
   }
   return res.status(403).json({ valid: false, message: 'Invalid key.' });
+});
+
+// ── Diagnostics (per-source counts, errors, env check) ──
+app.get('/api/diagnostics', requireKey('data'), (req, res) => {
+  res.json({
+    ...collectorDiagnostics,
+    historySnapshots: pulseHistory.length,
+    currentSource: pulseCache?.data?.source || null,
+    xCollectorNote: !process.env.X_BEARER_TOKEN
+      ? 'X_BEARER_TOKEN env var is NOT set — X collector will always skip'
+      : 'X_BEARER_TOKEN is set — check errors field if X count is 0',
+  });
 });
 
 app.listen(PORT, () => {

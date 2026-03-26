@@ -33,12 +33,20 @@ async function searchTweets(query, bearerToken) {
     });
 
     if (res.status === 429) {
-      console.warn('  ⚠ X API rate limited — skipping this run');
+      console.warn('  ⚠ X API rate limited (429) — skipping this run');
       return [];
+    }
+
+    if (res.status === 401 || res.status === 403) {
+      const body = await res.text();
+      console.error(`  ❌ X API auth failed (${res.status}): ${body.slice(0, 300)}`);
+      console.error('  ❌ Bearer token may be expired or revoked. Check X Developer Portal.');
+      throw new Error(`X API auth error ${res.status} — token may be invalid`);
     }
 
     if (!res.ok) {
       const body = await res.text();
+      console.error(`  ❌ X API error (${res.status}): ${body.slice(0, 300)}`);
       throw new Error(`HTTP ${res.status}: ${body.slice(0, 200)}`);
     }
 
