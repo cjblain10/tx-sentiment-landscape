@@ -130,9 +130,10 @@ export function analyzeSentiment(text) {
     }
   }
 
-  if (total === 0) return 0;
-  // Normalize: max possible is total, scale to -1..1 with dampening
-  return Math.max(-1, Math.min(1, score / Math.max(total, 3)));
+  if (total === 0) return 50;
+  // Normalize: scale to 0-100 (0 = most negative, 50 = neutral, 100 = most positive)
+  const raw = Math.max(-1, Math.min(1, score / Math.max(total, 3)));
+  return Math.round((raw + 1) * 50);
 }
 
 export function matchTopics(text) {
@@ -202,13 +203,13 @@ export function buildResponse(posts, sourceLabel) {
     for (const [reg, rd] of Object.entries(t.byRegion)) {
       if (reg === '_statewide') continue;
       byRegion[reg] = {
-        sentiment: Math.round((rd.sentiments.reduce((a, b) => a + b, 0) / rd.sentiments.length) * 100) / 100,
+        sentiment: Math.round(rd.sentiments.reduce((a, b) => a + b, 0) / rd.sentiments.length),
         volume: rd.volume,
       };
     }
     return {
       name,
-      sentiment: Math.round(avg * 100) / 100,
+      sentiment: Math.round(avg),
       volume: t.volume,
       byRegion,
       topMentions: t.mentions,
@@ -228,21 +229,19 @@ export function buildResponse(posts, sourceLabel) {
   const categories = Object.entries(catMap).map(([name, sentiments]) => ({
     name,
     sentiment: sentiments.length > 0
-      ? Math.round((sentiments.reduce((a, b) => a + b, 0) / sentiments.length) * 100) / 100
-      : 0,
+      ? Math.round(sentiments.reduce((a, b) => a + b, 0) / sentiments.length)
+      : 50,
     volume: sentiments.length,
     delta: 0,
   }));
 
   // ── Overall score (volume-weighted category average) ──
-  // Previously engagement-weighted across all posts, which diluted signal to ~0.
-  // Now averages category scores weighted by each category's post volume,
-  // producing a score that reflects what the category breakdown actually shows.
+  // 0-100 scale: 0 = most negative, 50 = neutral, 100 = most positive
   const catsWithVolume = categories.filter(c => c.volume > 0);
   const totalCatVolume = catsWithVolume.reduce((s, c) => s + c.volume, 0);
   const overallScore = totalCatVolume > 0
-    ? Math.round((catsWithVolume.reduce((s, c) => s + c.sentiment * c.volume, 0) / totalCatVolume) * 1000) / 1000
-    : 0;
+    ? Math.round(catsWithVolume.reduce((s, c) => s + c.sentiment * c.volume, 0) / totalCatVolume)
+    : 50;
 
   // ── Biggest movers: topics with most mentions ──
   const biggestMovers = topics.slice(0, 5).map(t => ({

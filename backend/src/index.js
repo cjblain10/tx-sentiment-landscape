@@ -151,17 +151,17 @@ async function runCollection() {
       // Calculate deltas vs previous snapshot
       if (pulseHistory.length > 0) {
         const prev = pulseHistory[pulseHistory.length - 1];
-        pulse.scoreDelta = Math.round((pulse.overallScore - prev.overallScore) * 1000) / 1000;
+        pulse.scoreDelta = pulse.overallScore - prev.overallScore;
         if (prev.categories) {
           pulse.categories = pulse.categories.map(cat => {
             const prevCat = prev.categories.find(c => c.name === cat.name);
-            return { ...cat, delta: prevCat ? Math.round((cat.sentiment - prevCat.sentiment) * 1000) / 1000 : 0 };
+            return { ...cat, delta: prevCat ? cat.sentiment - prevCat.sentiment : 0 };
           });
         }
         if (prev.topics) {
           pulse.biggestMovers = pulse.biggestMovers.map(mover => {
             const prevTopic = prev.topics.find(t => t.name === mover.name);
-            return { ...mover, delta: prevTopic ? Math.round((mover.sentiment - prevTopic.sentiment) * 1000) / 1000 : 0 };
+            return { ...mover, delta: prevTopic ? mover.sentiment - prevTopic.sentiment : 0 };
           });
         }
       }
@@ -223,27 +223,29 @@ app.get('/api/sentiment/ticker', (req, res) => {
   }
 
   const d = pulseCache.data;
-  const fmt = (s) => ((s * 10) >= 0 ? '+' : '') + (s * 10).toFixed(1);
+  const fmtScore = (s) => `${Math.round(s)}/100`;
+  const fmtDelta = (d) => d ? `${d > 0 ? '+' : ''}${Math.round(d)}` : '0';
   const topMover = d.biggestMovers?.[0] || null;
 
   res.json({
     overall: {
-      score: fmt(d.overallScore),
-      rawScore: parseFloat((d.overallScore * 10).toFixed(1)),
-      delta: d.scoreDelta ? fmt(d.scoreDelta) : '0.0',
+      score: fmtScore(d.overallScore),
+      rawScore: Math.round(d.overallScore),
+      delta: fmtDelta(d.scoreDelta),
       label: 'Texas Sentiment',
+      scale: '0-100',
     },
     categories: (d.categories || []).map(c => ({
       name: c.name,
-      score: fmt(c.sentiment),
-      rawScore: parseFloat((c.sentiment * 10).toFixed(1)),
-      delta: c.delta ? fmt(c.delta) : '0.0',
+      score: fmtScore(c.sentiment),
+      rawScore: Math.round(c.sentiment),
+      delta: fmtDelta(c.delta),
       volume: c.volume,
     })),
     topMover: topMover ? {
       name: topMover.name,
-      score: fmt(topMover.sentiment),
-      delta: topMover.delta ? fmt(topMover.delta) : '0.0',
+      score: fmtScore(topMover.sentiment),
+      delta: fmtDelta(topMover.delta),
     } : null,
     date: d.date,
     updatedAt: pulseCache.cachedAt,

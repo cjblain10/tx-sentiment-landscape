@@ -119,7 +119,8 @@ function seededRandom(s) {
 
 function genSentiment(name, dayOffset) {
   const s = seed(name, dayOffset);
-  return Math.round((seededRandom(s) * 2 - 1) * 100) / 100;
+  // 0-100 scale: 0 = most negative, 50 = neutral, 100 = most positive
+  return Math.round(seededRandom(s) * 100);
 }
 
 function genVolume(name, dayOffset) {
@@ -128,11 +129,11 @@ function genVolume(name, dayOffset) {
 }
 
 function calculateOverallScore(topics) {
-  if (topics.length === 0) return 0;
+  if (topics.length === 0) return 50;
   const totalWeight = topics.reduce((sum, t) => sum + t.volume, 0);
-  if (totalWeight === 0) return 0;
+  if (totalWeight === 0) return 50;
   const weightedSum = topics.reduce((sum, t) => sum + (t.sentiment * t.volume), 0);
-  return Math.round((weightedSum / totalWeight) * 100) / 100;
+  return Math.round(weightedSum / totalWeight);
 }
 
 export function getDailySentimentData() {
@@ -163,6 +164,7 @@ export function getDailySentimentData() {
       region: REGIONS[Math.floor(seededRandom(seed(name + 'mr' + i, dayOffset)) * REGIONS.length)],
     }));
 
+
     return { name, sentiment, volume, byRegion, topMentions: mentions };
   }).sort((a, b) => b.volume - a.volume);
 
@@ -178,7 +180,7 @@ export function getDailySentimentData() {
     volume: genVolume(name, yesterdayOffset),
   }));
   const yesterdayScore = calculateOverallScore(yesterdayTopics);
-  const scoreDelta = Math.round((overallScore - yesterdayScore) * 100) / 100;
+  const scoreDelta = overallScore - yesterdayScore;
 
   // Calculate category-level scores
   const categories = Object.entries(PRIMARY_CATEGORIES).map(([categoryName, categoryTopics]) => {
@@ -205,7 +207,7 @@ export function getDailySentimentData() {
       volume: genVolume(name, yesterdayOffset),
     }));
     const yesterdayCatScore = calculateOverallScore(yesterdayCategoryData);
-    const categoryDelta = Math.round((sentiment - yesterdayCatScore) * 100) / 100;
+    const categoryDelta = sentiment - yesterdayCatScore;
 
     return {
       name: categoryName,
@@ -219,7 +221,7 @@ export function getDailySentimentData() {
   // Calculate biggest movers (topics with largest sentiment swings)
   const topicsWithDeltas = topics.map(topic => {
     const yesterdaySentiment = genSentiment(topic.name, yesterdayOffset);
-    const delta = Math.round((topic.sentiment - yesterdaySentiment) * 100) / 100;
+    const delta = topic.sentiment - yesterdaySentiment;
     return { ...topic, delta };
   });
 
