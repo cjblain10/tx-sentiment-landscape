@@ -1,7 +1,10 @@
 import { analyzeSentiment, matchTopics, detectRegion } from './shared.js';
+import fs from 'fs';
 
 // X (Twitter) API v2 — Basic tier, recent search
 // Runs once daily with 3 broad queries to stay under 10K reads/month cap
+
+const X_TIMESTAMP_PATH = '/tmp/x-last-collection.json';
 
 const SEARCH_URL = 'https://api.twitter.com/2/tweets/search/recent';
 
@@ -91,9 +94,21 @@ function normalizePost(tweet) {
   };
 }
 
-// Track last collection time — only run once per 20 hours to stay under cap
-let lastCollectionTime = 0;
 const MIN_INTERVAL_MS = 20 * 60 * 60 * 1000; // 20 hours
+
+function loadLastCollectionTime() {
+  try {
+    if (fs.existsSync(X_TIMESTAMP_PATH)) {
+      const { ts } = JSON.parse(fs.readFileSync(X_TIMESTAMP_PATH, 'utf-8'));
+      return ts || 0;
+    }
+  } catch (_) {}
+  return 0;
+}
+
+function saveLastCollectionTime(ts) {
+  try { fs.writeFileSync(X_TIMESTAMP_PATH, JSON.stringify({ ts })); } catch (_) {}
+}
 
 export async function collectXPosts() {
   const bearerToken = process.env.X_BEARER_TOKEN;
@@ -103,10 +118,12 @@ export async function collectXPosts() {
     return [];
   }
 
-  // Rate guard: only collect once per ~20 hours
+  // Rate guard: persist across restarts so Render redeploys don't reset the counter
   const now = Date.now();
+  const lastCollectionTime = loadLastCollectionTime();
   if (lastCollectionTime && (now - lastCollectionTime) < MIN_INTERVAL_MS) {
-    console.log('🐦 X: skipped — last collection was less than 20 hours ago');
+    const hoursAgo = Math.round((now - lastCollectionTime) / 3600000);
+    console.log(`🐦 X: skipped — last collection was ${hoursAgo}h ago (20h minimum)`);
     return [];
   }
 
@@ -126,7 +143,7 @@ export async function collectXPosts() {
     if (i < QUERIES.length - 1) await sleep(1000); // respect rate limits
   }
 
-  lastCollectionTime = Date.now();
+  saveLastCollectionTime(Date.now());
   console.log(`🐦 X: collected ${posts.length} relevant posts`);
   return posts;
 }

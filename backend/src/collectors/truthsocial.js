@@ -22,6 +22,16 @@ const RSS_FEEDS = [
     url:  'https://www.texasrighttolife.com/feed/',
     lean: 'right',
   },
+  {
+    name: 'Texas Scorecard',
+    url:  'https://texasscorecard.com/feed/',
+    lean: 'right',
+  },
+  {
+    name: 'The Texan',
+    url:  'https://thetexan.news/feed/',
+    lean: 'right',
+  },
 ];
 
 function parseRSS(xml) {
