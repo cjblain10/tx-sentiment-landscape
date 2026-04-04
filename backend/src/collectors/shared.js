@@ -136,11 +136,23 @@ export function analyzeSentiment(text) {
   return Math.round((raw + 1) * 50);
 }
 
+// Pre-compiled keyword matchers: word-boundary regex for single words, includes() for phrases
+const TOPIC_MATCHERS = Object.fromEntries(
+  Object.entries(TOPIC_SEEDS).map(([topic, keywords]) => [
+    topic,
+    keywords.map(k => {
+      if (k.includes(' ')) return (text) => text.includes(k);
+      const re = new RegExp(`\\b${k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`);
+      return (text) => re.test(text);
+    }),
+  ])
+);
+
 export function matchTopics(text) {
   const lower = text.toLowerCase();
   const matched = [];
-  for (const [topic, keywords] of Object.entries(TOPIC_SEEDS)) {
-    if (keywords.some(k => lower.includes(k))) {
+  for (const [topic, matchers] of Object.entries(TOPIC_MATCHERS)) {
+    if (matchers.some(fn => fn(lower))) {
       matched.push(topic);
     }
   }
