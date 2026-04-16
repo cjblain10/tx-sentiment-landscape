@@ -18,7 +18,7 @@
   --pos-glow: 16, 185, 129;
   --neg: #ef4444;
   --neg-glow: 239, 68, 68;
-  --accent: #3b82f6;
+  --accent: #c7413f;
   --gold: #f59e0b;
 
   --border: rgba(255, 255, 255, 0.1);
@@ -35,7 +35,7 @@ body {
   line-height: 1.6;
   overflow-x: hidden;
   background-image:
-    radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.03) 0%, transparent 50%);
+    radial-gradient(circle at 50% 50%, rgba(199, 65, 63, 0.03) 0%, transparent 50%);
   background-position: center center;
   background-repeat: no-repeat;
   background-size: 100% 100%;
@@ -372,7 +372,7 @@ body {
   padding: 8px 12px;
   background: rgba(15, 23, 42, 0.85);
   backdrop-filter: blur(8px);
-  border: 1px solid rgba(59, 130, 246, 0.2);
+  border: 1px solid rgba(199, 65, 63, 0.2);
   border-radius: 6px;
   font-family: var(--sans);
   font-size: 0.6rem;
@@ -383,7 +383,7 @@ body {
 }
 .methodology-note:hover {
   opacity: 1;
-  border-color: rgba(59, 130, 246, 0.4);
+  border-color: rgba(199, 65, 63, 0.4);
 }
 .method-icon {
   flex-shrink: 0;
@@ -651,14 +651,14 @@ body {
 .time-chip:hover {
   color: var(--text);
   border-color: var(--accent);
-  background: rgba(59, 130, 246, 0.06);
+  background: rgba(199, 65, 63, 0.06);
 }
 
 .time-chip.active {
   color: #fff;
   background: var(--accent);
   border-color: var(--accent);
-  box-shadow: 0 0 10px rgba(59, 130, 246, 0.35);
+  box-shadow: 0 0 10px rgba(199, 65, 63, 0.35);
 }
 
 
@@ -877,15 +877,15 @@ body {
 
 .top-issue-card:hover {
   background: var(--bg-card-hover);
-  border-color: rgba(59, 130, 246, 0.4);
+  border-color: rgba(199, 65, 63, 0.4);
   transform: translateY(-2px);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
 }
 
 .top-issue-card.selected {
   border-color: var(--accent);
-  box-shadow: 0 0 20px rgba(59, 130, 246, 0.2);
-  background: rgba(59, 130, 246, 0.05);
+  box-shadow: 0 0 20px rgba(199, 65, 63, 0.2);
+  background: rgba(199, 65, 63, 0.05);
 }
 
 .top-issue-card.pos.selected { border-color: var(--pos); box-shadow: 0 0 20px rgba(16, 185, 129, 0.2); }
@@ -1047,8 +1047,8 @@ body {
 
 .mini-card.selected {
   border-color: var(--accent);
-  background: rgba(59, 130, 246, 0.06);
-  box-shadow: 0 0 12px rgba(59, 130, 246, 0.15);
+  background: rgba(199, 65, 63, 0.06);
+  box-shadow: 0 0 12px rgba(199, 65, 63, 0.15);
 }
 
 .mini-card.pos.selected { border-color: var(--pos); box-shadow: 0 0 12px rgba(16, 185, 129, 0.15); }
@@ -1131,8 +1131,8 @@ body {
   font-size: 0.65rem;
   font-weight: 500;
   padding: 0.2rem 0.55rem;
-  background: rgba(59, 130, 246, 0.1);
-  border: 1px solid rgba(59, 130, 246, 0.2);
+  background: rgba(199, 65, 63, 0.1);
+  border: 1px solid rgba(199, 65, 63, 0.2);
   border-radius: 20px;
   color: var(--text-dim);
   letter-spacing: 0.02em;

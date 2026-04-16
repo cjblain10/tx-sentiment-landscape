@@ -352,17 +352,11 @@ function App() {
 
       <header className="header">
         <div className="header-left">
-          <img
-            src="https://d263zunsorfp81.cloudfront.net/assets/federalnewswire/lonestarstandard/brand-4e742847ec78903fb56ed56fdc663fb894389e528eb02e8cc311750971c4cf3d.webp"
-            alt="Lone Star Standard"
-            className="lss-logo"
-          />
-          <span className="logo-divider">&times;</span>
-          <span className="logo-powered">LocalInsights.ai</span>
+          <span className="logo-powered">TEXAS<span style={{color:'#c7413f',margin:'0 0.3em'}}>•</span>DISPATCH</span>
         </div>
         <div className="header-center">
-          <h1 className="site-title">LONE STAR PULSE</h1>
-          <p className="site-subtitle">Texas Public Sentiment Index</p>
+          <h1 className="site-title">TEXAS DISPATCH</h1>
+          <p className="site-subtitle">Texas Political Sentiment Index</p>
         </div>
         <div className="header-right">
           <div className="header-actions">
@@ -743,7 +737,7 @@ function App() {
           &nbsp;&middot;&nbsp;8 sources&nbsp;&middot;&nbsp;Refreshed every 2 hours
         </span>
         <span>
-          A <a href="https://lonestarstandard.com" target="_blank" rel="noopener">Lone Star Standard</a> project powered by{' '}
+          A <a href="https://thetexasdispatch.com" target="_blank" rel="noopener">Texas Dispatch</a> project powered by{' '}
           <a href="https://localinsights.ai" target="_blank" rel="noopener">LocalInsights.ai</a>
         </span>
       </footer>
