@@ -1,0 +1,33 @@
+name: Weekly Sentiment Report
+
+on:
+  # Every Friday at noon CT (18:00 UTC)
+  schedule:
+    - cron: '0 18 * * 5'
+  # Manual trigger (for testing)
+  workflow_dispatch:
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install report dependencies
+        run: |
+          cd scripts
+          npm init -y
+          npm install @anthropic-ai/sdk resend
+
+      - name: Run weekly report
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          REPORT_FROM: ${{ secrets.REPORT_FROM }}
+          SENTIMENT_API_KEY: ${{ secrets.SENTIMENT_API_KEY }}
+        run: node scripts/weekly-report.mjs

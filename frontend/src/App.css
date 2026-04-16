@@ -143,7 +143,7 @@ body {
 }
 
 .gate-btn:hover {
-  background: #2563eb;
+  background: #a8302e;
 }
 
 .gate-msg {
@@ -248,15 +248,12 @@ body {
 
 .logo-powered {
   font-family: var(--sans);
-  font-size: 0.75rem;
-  font-weight: 500;
-  letter-spacing: 0.03em;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
   color: #ffffff;
-  text-shadow:
-    0 0 10px rgba(255, 255, 255, 0.8),
-    0 0 20px rgba(255, 255, 255, 0.4),
-    0 0 30px rgba(255, 255, 255, 0.2);
-  animation: glow 3s ease-in-out infinite;
+  text-shadow: none;
+  animation: none;
 }
 
 @keyframes glow {
