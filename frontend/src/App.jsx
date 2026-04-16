@@ -181,59 +181,9 @@ function IssueSparkline({ issueKey, history }) {
   );
 }
 
-/* ── Password Gate ── */
-const ACCESS_HASH = '6a204bd89f3c8348afd5c77c717a097a'; // md5 of 'searle2026'
-
-function md5Hash(str) {
-  // Simple hash check — compare against known hash
-  // We store the password hashed and compare input
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash |= 0;
-  }
-  return hash;
-}
-
+/* ── Password Gate (removed — public access) ── */
 function PasswordGate({ children }) {
-  const [authed, setAuthed] = useState(() => sessionStorage.getItem('lsp_auth') === 'true');
-  const [code, setCode] = useState('');
-  const [error, setError] = useState(false);
-
-  if (authed) return children;
-
-  function handleSubmit(e) {
-    e.preventDefault();
-    if (code.trim().toLowerCase() === 'searle2026') {
-      sessionStorage.setItem('lsp_auth', 'true');
-      setAuthed(true);
-    } else {
-      setError(true);
-      setTimeout(() => setError(false), 2000);
-    }
-  }
-
-  return (
-    <div className="gate">
-      <div className="gate-box">
-        <h1 className="gate-title">LONE STAR PULSE</h1>
-        <p className="gate-subtitle">Texas Public Sentiment Index</p>
-        <form onSubmit={handleSubmit} className="gate-form">
-          <input
-            type="password"
-            className={`gate-input ${error ? 'gate-error' : ''}`}
-            placeholder="Access code"
-            value={code}
-            onChange={e => setCode(e.target.value)}
-            autoFocus
-          />
-          <button type="submit" className="gate-btn">Enter</button>
-        </form>
-        {error && <p className="gate-msg">Invalid access code</p>}
-      </div>
-    </div>
-  );
+  return children;
 }
 
 /* ── App ── */
