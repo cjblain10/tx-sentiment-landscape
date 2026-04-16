@@ -307,6 +307,15 @@ app.get('/api/key/verify', (req, res) => {
   return res.status(403).json({ valid: false, message: 'Invalid key.' });
 });
 
+// ── Manual refresh trigger (external cron backup) ──
+app.post('/api/refresh', requireKey('data'), async (req, res) => {
+  if (isCollecting) {
+    return res.json({ status: 'already_collecting', cachedAt: pulseCache?.cachedAt || null });
+  }
+  res.json({ status: 'triggered', message: 'Collection started' });
+  runCollection(); // fire and forget
+});
+
 // ── Diagnostics (per-source counts, errors, env check) ──
 app.get('/api/diagnostics', requireKey('data'), (req, res) => {
   res.json({
