@@ -262,7 +262,32 @@ app.get('/api/sentiment/ticker', (req, res) => {
   });
 });
 
-// ── Public sentiment endpoint for Squarespace ticker (returns all topics as categories) ──
+// ── Label map matching sentiment site's TOP_ISSUES + OTHER_ISSUES (same order) ──
+const TICKER_ISSUES = [
+  { key: 'healthcare', label: 'Health Care' },
+  { key: 'education', label: 'Education' },
+  { key: 'economy & jobs', label: 'Economy' },
+  { key: 'cost of living', label: 'Cost of Living' },
+  { key: 'property tax', label: 'Property Taxes' },
+  { key: 'energy & grid', label: 'Energy' },
+  { key: 'government accountability', label: 'Government Accountability' },
+  { key: 'infrastructure', label: 'Infrastructure' },
+  { key: 'transportation', label: 'Transportation' },
+  { key: 'water & drought', label: 'Water' },
+  { key: 'tech & innovation', label: 'Tech & Innovation' },
+  { key: 'ai data centers', label: 'AI Data Centers' },
+  { key: 'border security', label: 'Border Security' },
+  { key: 'crime & safety', label: 'Crime & Safety' },
+  { key: 'local control', label: 'Local Control' },
+  { key: 'housing', label: 'Housing' },
+  { key: 'thc & hemp', label: 'THC & Hemp' },
+  { key: 'casinos & gambling', label: 'Casinos & Gambling' },
+  { key: 'nuclear energy', label: 'Nuclear Energy' },
+  { key: 'recycling', label: 'Recycling' },
+  { key: 'public information', label: 'Public Info & Transparency' },
+];
+
+// ── Public sentiment endpoint for Squarespace ticker ──
 app.get('/api/sentiment', (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Cache-Control', 'public, max-age=300');
@@ -272,17 +297,24 @@ app.get('/api/sentiment', (req, res) => {
   }
 
   const d = pulseCache.data;
-  const fmtScore = (s) => `${Math.round(s)}/100`;
+  const topicMap = {};
+  (d.topics || []).forEach(t => { topicMap[t.name] = t; });
+
   const fmtDelta = (v) => v ? `${v > 0 ? '+' : ''}${Math.round(v)}` : '0';
 
-  // Script 2 on Squarespace reads json.categories — give it all topics so the full ticker renders
-  const allTopics = (d.topics || []).map(t => ({
-    name: t.name,
-    score: fmtScore(t.sentiment),
-    rawScore: Math.round(t.sentiment),
-    delta: fmtDelta(t.delta),
-    volume: t.volume,
-  }));
+  // Use same labels, order, and scores as the sentiment site ticker
+  const categories = TICKER_ISSUES
+    .map(issue => {
+      const t = topicMap[issue.key];
+      if (!t || t.volume === 0) return null;
+      return {
+        name: issue.label,
+        score: Math.round(t.sentiment),
+        rawScore: Math.round(t.sentiment),
+        delta: fmtDelta(t.delta),
+      };
+    })
+    .filter(Boolean);
 
   res.json({
     overall: {
@@ -290,9 +322,8 @@ app.get('/api/sentiment', (req, res) => {
       score: Math.round(d.overallScore),
       rawScore: Math.round(d.overallScore),
       delta: fmtDelta(d.scoreDelta),
-      label: 'Texas Sentiment',
     },
-    categories: allTopics,
+    categories,
   });
 });
 
