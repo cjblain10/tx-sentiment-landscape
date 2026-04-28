@@ -213,55 +213,6 @@ setInterval(() => {
   fetch(`${SELF_URL}/api/health`).catch(() => {});
 }, 14 * 60 * 1000);
 
-// ── Ticker embed (CORS-open, 5-min CDN cache) ──
-app.get('/api/sentiment/ticker', (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Cache-Control', 'public, max-age=300');
-
-  if (!pulseCache?.data) {
-    return res.status(503).json({ error: true, message: 'No data available yet.' });
-  }
-
-  const d = pulseCache.data;
-  const fmtScore = (s) => `${Math.round(s)}/100`;
-  const fmtDelta = (d) => d ? `${d > 0 ? '+' : ''}${Math.round(d)}` : '0';
-  const topMover = d.biggestMovers?.[0] || null;
-
-  res.json({
-    overall: {
-      score: fmtScore(d.overallScore),
-      rawScore: Math.round(d.overallScore),
-      delta: fmtDelta(d.scoreDelta),
-      label: 'Texas Sentiment',
-      scale: '0-100',
-    },
-    categories: (d.categories || []).map(c => ({
-      name: c.name,
-      score: fmtScore(c.sentiment),
-      rawScore: Math.round(c.sentiment),
-      delta: fmtDelta(c.delta),
-      volume: c.volume,
-    })),
-    topics: (d.topics || []).map(t => ({
-      name: t.name,
-      score: fmtScore(t.sentiment),
-      rawScore: Math.round(t.sentiment),
-      delta: fmtDelta(t.delta),
-      volume: t.volume,
-    })),
-    topMover: topMover ? {
-      name: topMover.name,
-      score: fmtScore(topMover.sentiment),
-      delta: fmtDelta(topMover.delta),
-    } : null,
-    date: d.date,
-    updatedAt: pulseCache.cachedAt,
-    sources: collectorDiagnostics.activeSources || 8,
-    historyDays: pulseHistory.length,
-    embedUrl: 'https://sentiment.localinsights.ai',
-  });
-});
-
 // ── Label map matching sentiment site's TOP_ISSUES + OTHER_ISSUES (same order) ──
 const TICKER_ISSUES = [
   { key: 'healthcare', label: 'Health Care' },
@@ -286,6 +237,67 @@ const TICKER_ISSUES = [
   { key: 'recycling', label: 'Recycling' },
   { key: 'public information', label: 'Public Info & Transparency' },
 ];
+
+// ── Ticker embed (CORS-open, 5-min CDN cache) ──
+app.get('/api/sentiment/ticker', (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Cache-Control', 'public, max-age=300');
+
+  if (!pulseCache?.data) {
+    return res.status(503).json({ error: true, message: 'No data available yet.' });
+  }
+
+  const d = pulseCache.data;
+  const topicMap = {};
+  (d.topics || []).forEach(t => { topicMap[t.name] = t; });
+
+  const fmtScore = (s) => `${Math.round(s)}/100`;
+  const fmtDelta = (v) => v ? `${v > 0 ? '+' : ''}${Math.round(v)}` : '0';
+  const topMover = d.biggestMovers?.[0] || null;
+
+  // Keep categories aligned with the live sentiment ticker issue order/labels.
+  const categories = TICKER_ISSUES
+    .map(issue => {
+      const t = topicMap[issue.key];
+      if (!t || t.volume === 0) return null;
+      return {
+        name: issue.label,
+        score: fmtScore(t.sentiment),
+        rawScore: Math.round(t.sentiment),
+        delta: fmtDelta(t.delta),
+        volume: t.volume,
+      };
+    })
+    .filter(Boolean);
+
+  res.json({
+    overall: {
+      score: fmtScore(d.overallScore),
+      rawScore: Math.round(d.overallScore),
+      delta: fmtDelta(d.scoreDelta),
+      label: 'Texas Sentiment',
+      scale: '0-100',
+    },
+    categories,
+    topics: (d.topics || []).map(t => ({
+      name: t.name,
+      score: fmtScore(t.sentiment),
+      rawScore: Math.round(t.sentiment),
+      delta: fmtDelta(t.delta),
+      volume: t.volume,
+    })),
+    topMover: topMover ? {
+      name: topMover.name,
+      score: fmtScore(topMover.sentiment),
+      delta: fmtDelta(topMover.delta),
+    } : null,
+    date: d.date,
+    updatedAt: pulseCache.cachedAt,
+    sources: collectorDiagnostics.activeSources || 8,
+    historyDays: pulseHistory.length,
+    embedUrl: 'https://sentiment.localinsights.ai',
+  });
+});
 
 // ── Public sentiment endpoint for Squarespace ticker ──
 app.get('/api/sentiment', (req, res) => {
