@@ -242,6 +242,13 @@ app.get('/api/sentiment/ticker', (req, res) => {
       delta: fmtDelta(c.delta),
       volume: c.volume,
     })),
+    topics: (d.topics || []).map(t => ({
+      name: t.name,
+      score: fmtScore(t.sentiment),
+      rawScore: Math.round(t.sentiment),
+      delta: fmtDelta(t.delta),
+      volume: t.volume,
+    })),
     topMover: topMover ? {
       name: topMover.name,
       score: fmtScore(topMover.sentiment),
@@ -252,6 +259,40 @@ app.get('/api/sentiment/ticker', (req, res) => {
     sources: collectorDiagnostics.activeSources || 8,
     historyDays: pulseHistory.length,
     embedUrl: 'https://sentiment.localinsights.ai',
+  });
+});
+
+// ── Public sentiment endpoint for Squarespace ticker (returns all topics as categories) ──
+app.get('/api/sentiment', (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Cache-Control', 'public, max-age=300');
+
+  if (!pulseCache?.data) {
+    return res.status(503).json({ error: true, message: 'No data available yet.' });
+  }
+
+  const d = pulseCache.data;
+  const fmtScore = (s) => `${Math.round(s)}/100`;
+  const fmtDelta = (v) => v ? `${v > 0 ? '+' : ''}${Math.round(v)}` : '0';
+
+  // Script 2 on Squarespace reads json.categories — give it all topics so the full ticker renders
+  const allTopics = (d.topics || []).map(t => ({
+    name: t.name,
+    score: fmtScore(t.sentiment),
+    rawScore: Math.round(t.sentiment),
+    delta: fmtDelta(t.delta),
+    volume: t.volume,
+  }));
+
+  res.json({
+    overall: {
+      name: 'OVERALL',
+      score: Math.round(d.overallScore),
+      rawScore: Math.round(d.overallScore),
+      delta: fmtDelta(d.scoreDelta),
+      label: 'Texas Sentiment',
+    },
+    categories: allTopics,
   });
 });
 

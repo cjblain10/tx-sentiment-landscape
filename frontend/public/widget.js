@@ -188,15 +188,17 @@
   }
 
   async function fetchSentimentData() {
-    const response = await fetch(`${API_URL}/api/sentiment/today`);
+    const response = await fetch(`${API_URL}/api/sentiment/ticker`);
     return response.json();
   }
 
   function renderWidget(container, data, options) {
     const { theme = 'dark', compact = false } = options;
 
-    const deltaClass = data.scoreDelta > 0 ? 'pos' : 'neg';
-    const scoreClass = data.overallScore >= 0 ? 'pos' : 'neg';
+    const overall = data.overall;
+    const deltaNum = parseInt(overall.delta, 10);
+    const deltaClass = deltaNum >= 0 ? 'pos' : 'neg';
+    const scoreClass = overall.rawScore >= 50 ? 'pos' : 'neg';
 
     container.className = `tx-sentiment-widget ${theme} ${compact ? 'compact' : ''}`;
     container.innerHTML = `
@@ -205,28 +207,31 @@
         <div class="tx-widget-title">How Texans Feel Right Now</div>
         <div>
           <span class="tx-overall-score ${scoreClass}">
-            ${data.overallScore >= 0 ? '+' : ''}${data.overallScore.toFixed(1)}
+            ${overall.score}
           </span>
-          ${data.scoreDelta !== 0 ? `
+          ${deltaNum !== 0 ? `
             <span class="tx-delta ${deltaClass}">
-              ${data.scoreDelta > 0 ? '▲' : '▼'}${Math.abs(data.scoreDelta).toFixed(1)}
+              ${deltaNum > 0 ? '▲' : '▼'}${overall.delta}
             </span>
           ` : ''}
         </div>
       </div>
 
       <div class="tx-categories">
-        ${data.categories.map(cat => `
+        ${data.categories.map(cat => {
+          const catDelta = parseInt(cat.delta, 10);
+          return `
           <div class="tx-category">
             <div class="tx-category-name">${cat.name}</div>
-            <div class="tx-category-score ${cat.sentiment >= 0 ? 'pos' : 'neg'}">
-              ${cat.sentiment >= 0 ? '+' : ''}${cat.sentiment.toFixed(1)}
+            <div class="tx-category-score ${cat.rawScore >= 50 ? 'pos' : 'neg'}">
+              ${cat.score}
             </div>
           </div>
-        `).join('')}
+        `}).join('')}
       </div>
 
       <div class="tx-widget-footer">
+        <span style="font-size:0.65rem;color:#a0aec0;">${data.sources} sources · Updated ${new Date(data.updatedAt).toLocaleDateString()}</span><br/>
         A <a href="https://lonestarstandard.com" target="_blank">Lone Star Standard</a> project powered by <a href="https://sentiment.localinsights.ai" target="_blank">LocalInsights.ai</a>
       </div>
     `;
