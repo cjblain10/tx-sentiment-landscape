@@ -4,21 +4,19 @@ import './App.css';
 
 function capitalize(s) { return s.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '); }
 
-// Scale raw sentiment (-1..1) to display score (-10..10)
+// Display 0-100 score as whole number
 function fmt(s) {
-  const scaled = s * 10;
-  return (scaled >= 0 ? '+' : '') + scaled.toFixed(1);
+  return Math.round(s).toString();
 }
 
-// Convert raw sentiment (-1..1) to plain English tone label + emoji
+// Convert 0-100 sentiment to plain English tone label + emoji
 function toneLabel(s) {
-  const v = s * 10;
-  if (v <= -5)  return { label: 'Very Negative',       emoji: '🔴', color: '#ef4444', short: 'Crisis-level concern' };
-  if (v <= -2)  return { label: 'Negative',            emoji: '🟠', color: '#f97316', short: 'More worry than hope' };
-  if (v <= -0.5) return { label: 'Slightly Negative',  emoji: '🟡', color: '#eab308', short: 'Leaning concerned' };
-  if (v < 0.5)  return { label: 'Neutral',             emoji: '⚪', color: '#94a3b8', short: 'Balanced — no strong lean' };
-  if (v < 2)    return { label: 'Slightly Positive',   emoji: '🟢', color: '#22c55e', short: 'Leaning hopeful' };
-  if (v < 5)    return { label: 'Positive',            emoji: '💚', color: '#10b981', short: 'More optimism than concern' };
+  if (s <= 25)  return { label: 'Very Negative',       emoji: '🔴', color: '#ef4444', short: 'Crisis-level concern' };
+  if (s <= 40)  return { label: 'Negative',            emoji: '🟠', color: '#f97316', short: 'More worry than hope' };
+  if (s <= 48)  return { label: 'Slightly Negative',   emoji: '🟡', color: '#eab308', short: 'Leaning concerned' };
+  if (s < 52)   return { label: 'Neutral',             emoji: '⚪', color: '#94a3b8', short: 'Balanced — no strong lean' };
+  if (s < 60)   return { label: 'Slightly Positive',   emoji: '🟢', color: '#22c55e', short: 'Leaning hopeful' };
+  if (s < 75)   return { label: 'Positive',            emoji: '💚', color: '#10b981', short: 'More optimism than concern' };
   return         { label: 'Very Positive',             emoji: '🟩', color: '#00ff88', short: 'Strong optimism' };
 }
 
@@ -57,8 +55,8 @@ function generateSummary(data, topics) {
   if (sorted.length === 0) return '';
   const mostPositive = sorted.sort((a, b) => b.sentiment - a.sentiment)[0];
   const mostNegative = [...sorted].sort((a, b) => a.sentiment - b.sentiment)[0];
-  const tone = data.overallScore >= 0.03 ? 'optimistic' :
-               data.overallScore <= -0.03 ? 'pessimistic' : 'mixed';
+  const tone = data.overallScore >= 52 ? 'optimistic' :
+               data.overallScore <= 48 ? 'pessimistic' : 'mixed';
   const toneWords = {
     optimistic: 'Texans remain cautiously optimistic',
     pessimistic: 'Texans express growing concerns',
@@ -120,11 +118,11 @@ function OverallSparkline({ history }) {
   if (!history || history.length === 0) return null;
   const W = 200, H = 40, PAD = 4;
   const scores = history.map(s => s.overallScore);
-  const min = Math.min(-0.1, ...scores);
-  const max = Math.max(0.1, ...scores);
+  const min = Math.min(40, ...scores);
+  const max = Math.max(60, ...scores);
   const xScale = i => PAD + (i / (scores.length - 1)) * (W - PAD * 2);
   const yScale = v => H - PAD - ((v - min) / (max - min)) * (H - PAD * 2);
-  const zero = yScale(0);
+  const mid = yScale(50);
   const pts = scores.map((v, i) => `${xScale(i)},${yScale(v)}`).join(' ');
   const latest = scores[scores.length - 1];
   const prev = scores[scores.length - 2];
@@ -132,12 +130,12 @@ function OverallSparkline({ history }) {
   return (
     <div className="overall-sparkline">
       <svg width={W} height={H} style={{ overflow: 'visible' }}>
-        <line x1={PAD} x2={W - PAD} y1={zero} y2={zero} stroke="rgba(255,255,255,0.1)" strokeWidth="1" />
-        <polyline points={pts} fill="none" stroke={latest >= 0 ? '#10b981' : '#ef4444'} strokeWidth="1.5" strokeLinejoin="round" opacity="0.8" />
-        <circle cx={xScale(scores.length - 1)} cy={yScale(latest)} r="2.5" fill={latest >= 0 ? '#10b981' : '#ef4444'} />
+        <line x1={PAD} x2={W - PAD} y1={mid} y2={mid} stroke="rgba(255,255,255,0.1)" strokeWidth="1" />
+        <polyline points={pts} fill="none" stroke={latest >= 50 ? '#10b981' : '#ef4444'} strokeWidth="1.5" strokeLinejoin="round" opacity="0.8" />
+        <circle cx={xScale(scores.length - 1)} cy={yScale(latest)} r="2.5" fill={latest >= 50 ? '#10b981' : '#ef4444'} />
       </svg>
       <span className={`sparkline-delta ${delta >= 0 ? 'pos' : 'neg'}`}>
-        {delta >= 0 ? '▲' : '▼'} {Math.abs(delta * 10).toFixed(1)} from last check
+        {delta >= 0 ? '▲' : '▼'} {Math.round(Math.abs(delta))} from last check
       </span>
     </div>
   );
@@ -153,7 +151,7 @@ function IssueSparkline({ issueKey, history }) {
 
   const W = 160, H = 32, PAD = 3;
   const latest = scores[scores.length - 1];
-  const color = latest >= 0 ? '#10b981' : '#ef4444';
+  const color = latest >= 50 ? '#10b981' : '#ef4444';
 
   if (scores.length === 1) {
     const cx = W / 2, cy = H / 2;
@@ -165,16 +163,16 @@ function IssueSparkline({ issueKey, history }) {
     );
   }
 
-  const min = Math.min(-0.05, ...scores);
-  const max = Math.max(0.05, ...scores);
+  const min = Math.min(40, ...scores);
+  const max = Math.max(60, ...scores);
   const xScale = i => PAD + (i / (scores.length - 1)) * (W - PAD * 2);
   const yScale = v => H - PAD - ((v - min) / (max - min)) * (H - PAD * 2);
-  const zero = yScale(0);
+  const mid = yScale(50);
   const pts = scores.map((v, i) => `${xScale(i)},${yScale(v)}`).join(' ');
 
   return (
     <svg width={W} height={H} className="issue-sparkline-svg" style={{ overflow: 'visible' }}>
-      <line x1={PAD} x2={W - PAD} y1={zero} y2={zero} stroke="rgba(255,255,255,0.12)" strokeWidth="1" />
+      <line x1={PAD} x2={W - PAD} y1={mid} y2={mid} stroke="rgba(255,255,255,0.12)" strokeWidth="1" />
       <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" opacity="0.85" />
       <circle cx={xScale(scores.length - 1)} cy={yScale(latest)} r="2.5" fill={color} />
     </svg>
@@ -276,7 +274,7 @@ function App() {
     const rows = [['Issue', 'Sentiment Score', 'Volume']];
     [...TOP_ISSUES, ...OTHER_ISSUES].forEach(issue => {
       const t = topicLookup[issue.key];
-      if (t) rows.push([issue.label, (t.sentiment * 10).toFixed(2), t.volume]);
+      if (t) rows.push([issue.label, Math.round(t.sentiment), t.volume]);
       else rows.push([issue.label, '', 0]);
     });
     const csv = rows.map(r => r.map(v => `"${v}"`).join(',')).join('\n');
@@ -327,7 +325,7 @@ function App() {
                 return (
                   <span key={issue.key} className="ticker-item">
                     <span className="ticker-item-name">{issue.label}</span>
-                    <span className={`ticker-item-score ${td.sentiment >= 0 ? 'pos' : 'neg'}`}>
+                    <span className={`ticker-item-score ${td.sentiment >= 50 ? 'pos' : 'neg'}`}>
                       {fmt(td.sentiment)}
                     </span>
                   </span>
@@ -339,7 +337,7 @@ function App() {
                 return (
                   <span key={issue.key + '-dup'} className="ticker-item" aria-hidden="true">
                     <span className="ticker-item-name">{issue.label}</span>
-                    <span className={`ticker-item-score ${td.sentiment >= 0 ? 'pos' : 'neg'}`}>
+                    <span className={`ticker-item-score ${td.sentiment >= 50 ? 'pos' : 'neg'}`}>
                       {fmt(td.sentiment)}
                     </span>
                   </span>
@@ -404,8 +402,8 @@ function App() {
                 {toneLabel(data.overallScore).label}
               </span>
             </div>
-            <div className={`overall-value ${data.overallScore >= 0 ? 'pos' : 'neg'}`}>
-              {fmt(data.overallScore)} <span className="score-scale">/ 10</span>
+            <div className={`overall-value ${data.overallScore >= 50 ? 'pos' : 'neg'}`}>
+              {fmt(data.overallScore)} <span className="score-scale">/ 100</span>
             </div>
 
             <div className="sentiment-gauge-wrap">
@@ -415,7 +413,7 @@ function App() {
                 <div className="gauge-zone gauge-pos" />
                 <div
                   className="gauge-needle"
-                  style={{ left: `${((data.overallScore + 1) / 2) * 100}%` }}
+                  style={{ left: `${data.overallScore}%` }}
                 />
               </div>
               <div className="gauge-labels">
@@ -445,7 +443,7 @@ function App() {
 
             {data.scoreDelta !== undefined && data.scoreDelta !== 0 && (
               <div className={`overall-delta ${data.scoreDelta > 0 ? 'pos' : 'neg'}`}>
-                {data.scoreDelta > 0 ? '▲' : '▼'}{Math.abs(data.scoreDelta * 10).toFixed(1)} from yesterday
+                {data.scoreDelta > 0 ? '▲' : '▼'}{Math.round(Math.abs(data.scoreDelta))} from yesterday
               </div>
             )}
             <div className="overall-meta">
@@ -474,29 +472,29 @@ function App() {
           <div className="reading-key-title">How to read these scores</div>
           <div className="reading-key-grid">
             <div className="key-item"><span className="key-dot" style={{background:'#ef4444'}} />
-              <div><strong>-5 to -10 · Very Negative</strong><br/>Crisis dominates — a major event is driving anger or fear</div>
+              <div><strong>0–25 · Very Negative</strong><br/>Crisis dominates — a major event is driving anger or fear</div>
             </div>
             <div className="key-item"><span className="key-dot" style={{background:'#f97316'}} />
-              <div><strong>-2 to -5 · Negative</strong><br/>Concerns outweigh optimism on this issue</div>
+              <div><strong>25–40 · Negative</strong><br/>Concerns outweigh optimism on this issue</div>
             </div>
             <div className="key-item"><span className="key-dot" style={{background:'#eab308'}} />
-              <div><strong>-0.5 to -2 · Slightly Negative</strong><br/>Mild worry — something is drawing criticism</div>
+              <div><strong>40–48 · Slightly Negative</strong><br/>Mild worry — something is drawing criticism</div>
             </div>
             <div className="key-item"><span className="key-dot" style={{background:'#94a3b8'}} />
-              <div><strong>-0.5 to +0.5 · Neutral</strong><br/>Normal baseline — no strong lean either way</div>
+              <div><strong>48–52 · Neutral</strong><br/>Normal baseline — no strong lean either way</div>
             </div>
             <div className="key-item"><span className="key-dot" style={{background:'#22c55e'}} />
-              <div><strong>+0.5 to +2 · Slightly Positive</strong><br/>Mild optimism — good news or reform talk</div>
+              <div><strong>52–60 · Slightly Positive</strong><br/>Mild optimism — good news or reform talk</div>
             </div>
             <div className="key-item"><span className="key-dot" style={{background:'#10b981'}} />
-              <div><strong>+2 to +5 · Positive</strong><br/>Clear optimism — an issue is generating hope</div>
+              <div><strong>60–75 · Positive</strong><br/>Clear optimism — an issue is generating hope</div>
             </div>
             <div className="key-item"><span className="key-dot" style={{background:'#00ff88'}} />
-              <div><strong>+5 to +10 · Very Positive</strong><br/>Rare — usually a specific breakthrough or relief event</div>
+              <div><strong>75–100 · Very Positive</strong><br/>Rare — usually a specific breakthrough or relief event</div>
             </div>
           </div>
           <div className="reading-key-footer">
-            Scores are based on keyword analysis of {data.totalVolume?.toLocaleString()} social media posts, news articles, and public comments from 9 sources across Texas. This measures <em>language tone</em>, not public opinion polls. Most scores stay between -2 and +2 — that's normal.
+            Scores are based on keyword analysis of {data.totalVolume?.toLocaleString()} social media posts, news articles, and public comments from 9 sources across Texas. This measures <em>language tone</em>, not public opinion polls. Most scores stay between 40 and 60 — that's normal.
           </div>
         </div>
       )}
@@ -535,7 +533,7 @@ function App() {
                 return (
                   <button
                     key={issue.key}
-                    className={`top-issue-card ${hasData ? (td.sentiment >= 0 ? 'pos' : 'neg') : 'no-data'} ${isSelected ? 'selected' : ''} ${entered ? 'entered' : ''}`}
+                    className={`top-issue-card ${hasData ? (td.sentiment >= 50 ? 'pos' : 'neg') : 'no-data'} ${isSelected ? 'selected' : ''} ${entered ? 'entered' : ''}`}
                     style={{ '--card-delay': `${idx * 0.08}s` }}
                     onClick={() => hasData && setSelectedIssue(isSelected ? null : issue.key)}
                   >
@@ -543,13 +541,13 @@ function App() {
                       <span className="top-issue-name">{issue.label}</span>
                       {hasData && td.delta !== undefined && td.delta !== 0 && (
                         <span className={`top-issue-delta ${td.delta > 0 ? 'pos' : 'neg'}`}>
-                          {td.delta > 0 ? '▲' : '▼'}{Math.abs(td.delta * 10).toFixed(1)}
+                          {td.delta > 0 ? '▲' : '▼'}{Math.round(Math.abs(td.delta))}
                         </span>
                       )}
                     </div>
                     {hasData ? (
                       <>
-                        <div className={`top-issue-score ${td.sentiment >= 0 ? 'pos' : 'neg'}`}>
+                        <div className={`top-issue-score ${td.sentiment >= 50 ? 'pos' : 'neg'}`}>
                           {fmt(td.sentiment)}
                         </div>
                         <div className="top-issue-tone" style={{ color: toneLabel(td.sentiment).color }}>
@@ -584,14 +582,14 @@ function App() {
                 return (
                   <button
                     key={issue.key}
-                    className={`mini-card ${hasData ? (td.sentiment >= 0 ? 'pos' : 'neg') : 'no-data'} ${isSelected ? 'selected' : ''} ${entered ? 'entered' : ''}`}
+                    className={`mini-card ${hasData ? (td.sentiment >= 50 ? 'pos' : 'neg') : 'no-data'} ${isSelected ? 'selected' : ''} ${entered ? 'entered' : ''}`}
                     style={{ '--row-delay': `${idx * 0.04}s` }}
                     onClick={() => hasData && setSelectedIssue(isSelected ? null : issue.key)}
                   >
                     <span className="mini-card-name">{issue.label}</span>
                     {hasData ? (
                       <>
-                        <span className={`mini-card-score ${td.sentiment >= 0 ? 'pos' : 'neg'}`}>
+                        <span className={`mini-card-score ${td.sentiment >= 50 ? 'pos' : 'neg'}`}>
                           {fmt(td.sentiment)}
                         </span>
                         <span className="mini-card-vol">{td.volume.toLocaleString()} mentions</span>
@@ -655,7 +653,7 @@ function App() {
               </div>
               <div className="detail-nums">
                 <div className="detail-num">
-                  <span className={`detail-big ${topic.sentiment >= 0 ? 'pos' : 'neg'}`}>
+                  <span className={`detail-big ${topic.sentiment >= 50 ? 'pos' : 'neg'}`}>
                     {fmt(topic.sentiment)}
                   </span>
                   <span className="detail-label">Sentiment</span>
@@ -679,11 +677,11 @@ function App() {
                           <span className="region-bar-label">{regions[regId] || regId}</span>
                           <div className="region-bar-track">
                             <div
-                              className={`region-bar-fill ${rd.sentiment >= 0 ? 'pos' : 'neg'}`}
-                              style={{ width: `${Math.min(Math.abs(rd.sentiment) * 1000, 100)}%` }}
+                              className={`region-bar-fill ${rd.sentiment >= 50 ? 'pos' : 'neg'}`}
+                              style={{ width: `${Math.min(rd.sentiment, 100)}%` }}
                             />
                           </div>
-                          <span className={`region-bar-value ${rd.sentiment >= 0 ? 'pos' : 'neg'}`}>
+                          <span className={`region-bar-value ${rd.sentiment >= 50 ? 'pos' : 'neg'}`}>
                             {fmt(rd.sentiment)}
                           </span>
                           <span className="region-bar-vol">{rd.volume}</span>

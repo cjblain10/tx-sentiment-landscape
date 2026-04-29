@@ -9,7 +9,8 @@ export function TrendSparkline({ topic, dark = false }) {
 
   useEffect(() => {
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-    fetch(`${apiUrl}/api/sentiment/history?days=30`)
+    const apiKey = import.meta.env.VITE_API_KEY || 'txs_embed_089e6a982d263fcc4d90c525fd0a1c33';
+    fetch(`${apiUrl}/api/sentiment/history?days=30&key=${apiKey}`)
       .then(r => { if (!r.ok) throw new Error('fail'); return r.json(); })
       .then(d => setHistory(d))
       .catch(() => {});
@@ -59,20 +60,20 @@ export function TrendSparkline({ topic, dark = false }) {
     const ih = height - margin.top - margin.bottom;
 
     const x = d3.scaleTime().domain(d3.extent(data, d => d.date)).range([margin.left, margin.left + iw]);
-    const y = d3.scaleLinear().domain([-1, 1]).range([margin.top + ih, margin.top]);
+    const y = d3.scaleLinear().domain([0, 100]).range([margin.top + ih, margin.top]);
     const g = svg.append('g');
 
-    // zero line
+    // neutral line (50)
     g.append('line').attr('x1', margin.left).attr('x2', margin.left + iw)
-      .attr('y1', y(0)).attr('y2', y(0))
+      .attr('y1', y(50)).attr('y2', y(50))
       .attr('stroke', colors.axis).attr('stroke-width', 1).attr('stroke-dasharray', '4,3');
 
     // areas
     g.append('path').datum(data)
-      .attr('d', d3.area().x(d => x(d.date)).y0(y(0)).y1(d => y(Math.max(0, d.sentiment))).curve(d3.curveMonotoneX))
+      .attr('d', d3.area().x(d => x(d.date)).y0(y(50)).y1(d => y(Math.max(50, d.sentiment))).curve(d3.curveMonotoneX))
       .attr('fill', colors.pos).attr('opacity', 0.15);
     g.append('path').datum(data)
-      .attr('d', d3.area().x(d => x(d.date)).y0(y(0)).y1(d => y(Math.min(0, d.sentiment))).curve(d3.curveMonotoneX))
+      .attr('d', d3.area().x(d => x(d.date)).y0(y(50)).y1(d => y(Math.min(50, d.sentiment))).curve(d3.curveMonotoneX))
       .attr('fill', colors.neg).attr('opacity', 0.15);
 
     // line
@@ -103,7 +104,7 @@ export function TrendSparkline({ topic, dark = false }) {
         hd.attr('cx', x(d.date)).attr('cy', y(d.sentiment)).attr('opacity', 1);
         if (tt) {
           tt.style.opacity = '1'; tt.style.left = `${x(d.date)}px`; tt.style.top = `${y(d.sentiment) - 32}px`;
-          tt.innerHTML = `<strong>${d3.timeFormat('%b %d')(d.date)}</strong> ${d.sentiment >= 0 ? '+' : ''}${d.sentiment.toFixed(2)}`;
+          tt.innerHTML = `<strong>${d3.timeFormat('%b %d')(d.date)}</strong> ${Math.round(d.sentiment)}`;
         }
       })
       .on('mouseleave', () => { hl.attr('opacity', 0); hd.attr('opacity', 0); if (tt) tt.style.opacity = '0'; });

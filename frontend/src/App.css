@@ -5,10 +5,10 @@
   --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --mono: 'JetBrains Mono', 'Courier New', monospace;
 
-  --bg: #0a0e27;
-  --bg-card: rgba(255, 255, 255, 0.03);
-  --bg-card-hover: rgba(255, 255, 255, 0.06);
-  --bg-detail: rgba(10, 14, 39, 0.98);
+  --bg: #262626;
+  --bg-card: rgba(255, 255, 255, 0.04);
+  --bg-card-hover: rgba(255, 255, 255, 0.08);
+  --bg-detail: rgba(38, 38, 38, 0.98);
 
   --text: #e2e8f0;
   --text-dim: #94a3b8;
@@ -158,7 +158,7 @@ body {
   position: sticky;
   top: 0;
   z-index: 101;
-  background: rgba(6, 9, 20, 0.95);
+  background: rgba(38, 38, 38, 0.95);
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   overflow: hidden;
   height: 30px;
@@ -214,7 +214,7 @@ body {
   position: sticky;
   top: 30px;
   z-index: 100;
-  background: rgba(10, 14, 39, 0.95);
+  background: rgba(38, 38, 38, 0.95);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--border);
@@ -1407,7 +1407,7 @@ body {
   font-size: 0.75rem;
   color: var(--text-dim);
   border-top: 1px solid var(--border);
-  background: rgba(10, 14, 39, 0.8);
+  background: rgba(38, 38, 38, 0.8);
 }
 
 .footer a {
