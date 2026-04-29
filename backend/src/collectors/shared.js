@@ -1,5 +1,7 @@
 // Shared utilities: sentiment, topic matching, region detection, response builder
 
+const roundScore = (value) => Number(value.toFixed(2));
+
 // ── Topic seeds → granular topic names ──
 export const TOPIC_SEEDS = {
   'border security':   ['border', 'wall', 'immigration', 'migrant', 'crossing', 'deportation', 'ice', 'cbp', 'asylum', 'undocumented'],
@@ -215,13 +217,13 @@ export function buildResponse(posts, sourceLabel) {
     for (const [reg, rd] of Object.entries(t.byRegion)) {
       if (reg === '_statewide') continue;
       byRegion[reg] = {
-        sentiment: Math.round(rd.sentiments.reduce((a, b) => a + b, 0) / rd.sentiments.length),
+        sentiment: roundScore(rd.sentiments.reduce((a, b) => a + b, 0) / rd.sentiments.length),
         volume: rd.volume,
       };
     }
     return {
       name,
-      sentiment: Math.round(avg),
+      sentiment: roundScore(avg),
       volume: t.volume,
       byRegion,
       topMentions: t.mentions,
@@ -241,7 +243,7 @@ export function buildResponse(posts, sourceLabel) {
   const categories = Object.entries(catMap).map(([name, sentiments]) => ({
     name,
     sentiment: sentiments.length > 0
-      ? Math.round(sentiments.reduce((a, b) => a + b, 0) / sentiments.length)
+      ? roundScore(sentiments.reduce((a, b) => a + b, 0) / sentiments.length)
       : 50,
     volume: sentiments.length,
     delta: 0,
@@ -252,7 +254,7 @@ export function buildResponse(posts, sourceLabel) {
   const catsWithVolume = categories.filter(c => c.volume > 0);
   const totalCatVolume = catsWithVolume.reduce((s, c) => s + c.volume, 0);
   const overallScore = totalCatVolume > 0
-    ? Math.round(catsWithVolume.reduce((s, c) => s + c.sentiment * c.volume, 0) / totalCatVolume)
+    ? roundScore(catsWithVolume.reduce((s, c) => s + c.sentiment * c.volume, 0) / totalCatVolume)
     : 50;
 
   // ── Biggest movers: topics with most mentions ──
