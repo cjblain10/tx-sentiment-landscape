@@ -1,0 +1,36 @@
+---
+description: Texas Dispatch brand and scoring rules — NEVER change without explicit approval
+globs: ["frontend/**"]
+alwaysApply: true
+---
+
+# TX Sentiment Monitor — Brand & Scoring Protection
+
+## CRITICAL: Do NOT change these without CB's explicit approval
+
+### Brand: The Texas Dispatch
+- Background color: `#262626` (charcoal) — this IS the TX Dispatch brand color
+- Accent color: `#c7413f` (red)
+- Header: "TEXAS DISPATCH" with red dot separator
+- Subtitle: "Texas Political Sentiment Index"
+- Footer links to `thetexasdispatch.com`
+- DO NOT revert to navy `#0a0e27` (that was the old Lone Star Pulse)
+- DO NOT add a password gate — the site is public access
+
+### Scoring: 0-100 Scale (50 = neutral)
+- The API returns scores on a 0-100 scale. 50 is neutral.
+- The frontend displays scores as WHOLE NUMBERS (0-100).
+- DO NOT convert to -1..1 internally. DO NOT multiply by 10. DO NOT add +/- signs.
+- Positive = >= 50 (green). Negative = < 50 (red).
+- `fmt()` returns `Math.round(s).toString()` — that's it.
+- `toneLabel()` thresholds: 25/40/48/52/60/75 on the 0-100 scale.
+- Sparkline axis range: 40-60 (not -0.1 to 0.1).
+- TrendSparkline D3 y-axis: `[0, 100]`. Neutral line at `y(50)`.
+
+### Deploy
+- Always deploy via: `netlify deploy --prod --dir=frontend/dist --no-build`
+- Always verify the live site after deploy
+- Never leave uncommitted frontend changes on disk
+
+### History
+- 2026-04-28: Cursor pushed `897ce26` that added `toInternalScore()` converting 0-100 back to -1..1. This broke all displays. Was reverted by Code (Icarus).
