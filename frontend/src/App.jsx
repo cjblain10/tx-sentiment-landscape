@@ -4,15 +4,62 @@ import './App.css';
 
 function capitalize(s) { return s.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '); }
 
-// Scale raw sentiment (-1..1) to display score (-10..10)
+// Backend scores are 0..100. The UI works internally on -1..1 so neutral = 0.
+function toInternalScore(s) {
+  if (s === null || s === undefined || Number.isNaN(Number(s))) return 0;
+  const n = Number(s);
+  return Math.abs(n) <= 1 ? n : (n - 50) / 50;
+}
+
+function toScore100(s) {
+  const n = Number(s);
+  return Math.abs(n) <= 1 ? (n * 50) + 50 : n;
+}
+
 function fmt(s) {
-  const scaled = s * 10;
+  const scaled = toInternalScore(s) * 10;
   return (scaled >= 0 ? '+' : '') + scaled.toFixed(1);
+}
+
+function fmtTrendPoints(delta) {
+  const points = delta * 50;
+  return `${points >= 0 ? '+' : ''}${points.toFixed(2)}`;
+}
+
+function normalizeTopic(t) {
+  return {
+    ...t,
+    sentiment: toInternalScore(t.sentiment),
+    delta: t.delta === undefined ? t.delta : t.delta / 50,
+    byRegion: t.byRegion ? Object.fromEntries(
+      Object.entries(t.byRegion).map(([key, value]) => [key, { ...value, sentiment: toInternalScore(value.sentiment) }])
+    ) : t.byRegion,
+  };
+}
+
+function normalizePulse(d) {
+  return {
+    ...d,
+    overallScore: toInternalScore(d.overallScore),
+    scoreDelta: d.scoreDelta === undefined ? d.scoreDelta : d.scoreDelta / 50,
+    topics: (d.topics || []).map(normalizeTopic),
+    biggestMovers: (d.biggestMovers || []).map(normalizeTopic),
+    categories: (d.categories || []).map(normalizeTopic),
+  };
+}
+
+function normalizeSnapshot(snap) {
+  return {
+    ...snap,
+    overallScore: toInternalScore(snap.overallScore),
+    topics: (snap.topics || []).map(normalizeTopic),
+    categories: (snap.categories || []).map(normalizeTopic),
+  };
 }
 
 // Convert raw sentiment (-1..1) to plain English tone label + emoji
 function toneLabel(s) {
-  const v = s * 10;
+  const v = toInternalScore(s) * 10;
   if (v <= -5)  return { label: 'Very Negative',       emoji: '🔴', color: '#ef4444', short: 'Crisis-level concern' };
   if (v <= -2)  return { label: 'Negative',            emoji: '🟠', color: '#f97316', short: 'More worry than hope' };
   if (v <= -0.5) return { label: 'Slightly Negative',  emoji: '🟡', color: '#eab308', short: 'Leaning concerned' };
@@ -116,10 +163,10 @@ function Particles({ count = 60 }) {
 }
 
 /* ── Overall sparkline ── */
-function OverallSparkline({ history }) {
-  if (!history || history.length === 0) return null;
+function OverallSparkline({ history, timeRange }) {
+  if (!history || history.length < 2) return null;
   const W = 200, H = 40, PAD = 4;
-  const scores = history.map(s => s.overallScore);
+  const scores = history.map(s => toInternalScore(s.overallScore));
   const min = Math.min(-0.1, ...scores);
   const max = Math.max(0.1, ...scores);
   const xScale = i => PAD + (i / (scores.length - 1)) * (W - PAD * 2);
@@ -127,8 +174,9 @@ function OverallSparkline({ history }) {
   const zero = yScale(0);
   const pts = scores.map((v, i) => `${xScale(i)},${yScale(v)}`).join(' ');
   const latest = scores[scores.length - 1];
-  const prev = scores[scores.length - 2];
-  const delta = latest - prev;
+  const first = scores[0];
+  const delta = latest - first;
+  const label = timeRange || 'range';
   return (
     <div className="overall-sparkline">
       <svg width={W} height={H} style={{ overflow: 'visible' }}>
@@ -136,8 +184,8 @@ function OverallSparkline({ history }) {
         <polyline points={pts} fill="none" stroke={latest >= 0 ? '#10b981' : '#ef4444'} strokeWidth="1.5" strokeLinejoin="round" opacity="0.8" />
         <circle cx={xScale(scores.length - 1)} cy={yScale(latest)} r="2.5" fill={latest >= 0 ? '#10b981' : '#ef4444'} />
       </svg>
-      <span className={`sparkline-delta ${delta >= 0 ? 'pos' : 'neg'}`}>
-        {delta >= 0 ? '▲' : '▼'} {Math.abs(delta * 10).toFixed(1)} from last check
+      <span className={`sparkline-delta ${delta >= 0 ? 'pos' : 'neg'}`} title={`Start: ${toScore100(first).toFixed(2)} · Latest: ${toScore100(latest).toFixed(2)}`}>
+        {delta >= 0 ? '▲' : '▼'} {fmtTrendPoints(delta)} over {label}
       </span>
     </div>
   );
@@ -147,7 +195,10 @@ function OverallSparkline({ history }) {
 function IssueSparkline({ issueKey, history }) {
   if (!history || history.length === 0) return null;
   const scores = history
-    .map(snap => snap.topics?.find(t => t.name === issueKey)?.sentiment ?? null)
+    .map(snap => {
+      const raw = snap.topics?.find(t => t.name === issueKey)?.sentiment ?? null;
+      return raw === null ? null : toInternalScore(raw);
+    })
     .filter(v => v !== null);
   if (scores.length === 0) return null;
 
@@ -208,7 +259,7 @@ function App() {
     const days = RANGE_DAYS[timeRange];
     fetch(`${apiUrl}/api/sentiment/history?days=${days}&key=${apiKey}`)
       .then(r => r.ok ? r.json() : [])
-      .then(h => setHistory(h))
+      .then(h => setHistory(h.map(normalizeSnapshot)))
       .catch(() => {});
   }, [timeRange]);
 
@@ -218,7 +269,7 @@ function App() {
       .then(d => {
         if (d.error) { setData(null); setDataSource('unavailable'); }
         else {
-          setData(d);
+          setData(normalizePulse(d));
           setDataSource(d.source || 'live');
           if (d.stale) setStaleInfo({ cachedAt: d.cachedAt });
         }
@@ -429,7 +480,7 @@ function App() {
               {toneLabel(data.overallScore).short}
             </div>
 
-            <OverallSparkline history={history} />
+            <OverallSparkline history={history} timeRange={timeRange} />
 
             <div className="time-filter">
               {['14D', '30D', 'MAX'].map(r => (

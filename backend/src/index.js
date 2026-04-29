@@ -11,6 +11,8 @@ const HISTORY_PATH = '/tmp/tx-pulse-history.json';
 const REFRESH_INTERVAL_MS = parseInt(process.env.REFRESH_INTERVAL_MS || '') || 2 * 60 * 60 * 1000;
 const MAX_HISTORY = 360; // 12 runs/day × 30 days
 
+const roundDelta = (value) => Number(value.toFixed(2));
+
 app.use(cors());
 app.use(express.json());
 
@@ -151,17 +153,17 @@ async function runCollection() {
       // Calculate deltas vs previous snapshot
       if (pulseHistory.length > 0) {
         const prev = pulseHistory[pulseHistory.length - 1];
-        pulse.scoreDelta = pulse.overallScore - prev.overallScore;
+        pulse.scoreDelta = roundDelta(pulse.overallScore - prev.overallScore);
         if (prev.categories) {
           pulse.categories = pulse.categories.map(cat => {
             const prevCat = prev.categories.find(c => c.name === cat.name);
-            return { ...cat, delta: prevCat ? cat.sentiment - prevCat.sentiment : 0 };
+            return { ...cat, delta: prevCat ? roundDelta(cat.sentiment - prevCat.sentiment) : 0 };
           });
         }
         if (prev.topics) {
           pulse.biggestMovers = pulse.biggestMovers.map(mover => {
             const prevTopic = prev.topics.find(t => t.name === mover.name);
-            return { ...mover, delta: prevTopic ? mover.sentiment - prevTopic.sentiment : 0 };
+            return { ...mover, delta: prevTopic ? roundDelta(mover.sentiment - prevTopic.sentiment) : 0 };
           });
         }
       }
