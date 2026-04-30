@@ -28,11 +28,13 @@ export async function fetchTexasPulse() {
 
   // Check env vars relevant to collectors
   collectorDiagnostics.envCheck = {
-    X_BEARER_TOKEN:    !!process.env.X_BEARER_TOKEN,
-    YOUTUBE_API_KEY:   !!process.env.YOUTUBE_API_KEY,
-    NEWSAPI_KEY:       !!process.env.NEWSAPI_KEY,
-    REDDIT_CLIENT_ID:  !!process.env.REDDIT_CLIENT_ID,
+    X_BEARER_TOKEN: !!process.env.X_BEARER_TOKEN,
+    YOUTUBE_API_KEY: !!process.env.YOUTUBE_API_KEY,
+    NEWSAPI_KEY: !!process.env.NEWSAPI_KEY,
+    REDDIT_CLIENT_ID: !!process.env.REDDIT_CLIENT_ID,
   };
+  // Reset xCollectorNote each run
+  delete collectorDiagnostics.xCollectorNote;
 
   const collectors = [
     collectRedditPosts(),

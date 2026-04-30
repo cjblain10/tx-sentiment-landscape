@@ -20,45 +20,45 @@ function sleep(ms) {
   return new Promise(r => setTimeout(r, ms));
 }
 
+// Shared error state — lets collectXPosts() surface errors to diagnostics
+let lastError = null;
+
+export function getXLastError() {
+  return lastError;
+}
+
 async function searchTweets(query, bearerToken) {
-  try {
-    const params = new URLSearchParams({
-      query,
-      max_results: String(MAX_RESULTS),
-      'tweet.fields': 'created_at,public_metrics,author_id,lang',
-    });
+  const params = new URLSearchParams({
+    query,
+    max_results: String(MAX_RESULTS),
+    'tweet.fields': 'created_at,public_metrics,author_id,lang',
+  });
 
-    const res = await fetch(`${SEARCH_URL}?${params}`, {
-      headers: {
-        'Authorization': `Bearer ${bearerToken}`,
-        'Accept': 'application/json',
-      },
-    });
+  const res = await fetch(`${SEARCH_URL}?${params}`, {
+    headers: {
+      'Authorization': `Bearer ${bearerToken}`,
+      'Accept': 'application/json',
+    },
+  });
 
-    if (res.status === 429) {
-      console.warn('  ⚠ X API rate limited (429) — skipping this run');
-      return [];
-    }
-
-    if (res.status === 401 || res.status === 403) {
-      const body = await res.text();
-      console.error(`  ❌ X API auth failed (${res.status}): ${body.slice(0, 300)}`);
-      console.error('  ❌ Bearer token may be expired or revoked. Check X Developer Portal.');
-      throw new Error(`X API auth error ${res.status} — token may be invalid`);
-    }
-
-    if (!res.ok) {
-      const body = await res.text();
-      console.error(`  ❌ X API error (${res.status}): ${body.slice(0, 300)}`);
-      throw new Error(`HTTP ${res.status}: ${body.slice(0, 200)}`);
-    }
-
-    const data = await res.json();
-    return data.data || [];
-  } catch (err) {
-    console.warn(`  ⚠ X search "${query.slice(0, 40)}...": ${err.message}`);
-    return [];
+  if (res.status === 429) {
+    const resetHeader = res.headers.get('x-rate-limit-reset');
+    const resetAt = resetHeader ? new Date(parseInt(resetHeader) * 1000).toISOString() : 'unknown';
+    throw new Error(`X API rate limited (429) — resets at ${resetAt}`);
   }
+
+  if (res.status === 401 || res.status === 403) {
+    const body = await res.text();
+    throw new Error(`X API auth error (${res.status}) — bearer token may be expired or revoked. Response: ${body.slice(0, 200)}`);
+  }
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`X API HTTP ${res.status}: ${body.slice(0, 200)}`);
+  }
+
+  const data = await res.json();
+  return data.data || [];
 }
 
 function normalizePost(tweet) {
@@ -112,13 +112,15 @@ function saveLastCollectionTime(ts) {
 
 export async function collectXPosts() {
   const bearerToken = process.env.X_BEARER_TOKEN;
+  lastError = null;
 
   if (!bearerToken) {
     console.log('🐦 X: skipped — no X_BEARER_TOKEN set');
     return [];
   }
 
-  // Rate guard: persist across restarts so Render redeploys don't reset the counter
+  // Rate guard: stored in /tmp — resets on Render restart (by design, so we don't
+  // permanently block collection after a redeploy)
   const now = Date.now();
   const lastCollectionTime = loadLastCollectionTime();
   if (lastCollectionTime && (now - lastCollectionTime) < MIN_INTERVAL_MS) {
@@ -132,15 +134,22 @@ export async function collectXPosts() {
 
   console.log(`🐦 X: running ${QUERIES.length} searches...`);
 
-  for (let i = 0; i < QUERIES.length; i++) {
-    const raw = await searchTweets(QUERIES[i], bearerToken);
-    for (const tweet of raw) {
-      if (seen.has(tweet.id)) continue;
-      seen.add(tweet.id);
-      const normalized = normalizePost(tweet);
-      if (normalized) posts.push(normalized);
+  try {
+    for (let i = 0; i < QUERIES.length; i++) {
+      const raw = await searchTweets(QUERIES[i], bearerToken);
+      for (const tweet of raw) {
+        if (seen.has(tweet.id)) continue;
+        seen.add(tweet.id);
+        const normalized = normalizePost(tweet);
+        if (normalized) posts.push(normalized);
+      }
+      if (i < QUERIES.length - 1) await sleep(1000); // respect rate limits
     }
-    if (i < QUERIES.length - 1) await sleep(1000); // respect rate limits
+  } catch (err) {
+    // Surface error to diagnostics — rethrow so realData.js records it in errors.x
+    lastError = err.message;
+    console.error(`🐦 X: ❌ ${err.message}`);
+    throw err;
   }
 
   saveLastCollectionTime(Date.now());

@@ -410,7 +410,11 @@ app.get('/api/diagnostics', requireKey('data'), (req, res) => {
     currentSource: pulseCache?.data?.source || null,
     xCollectorNote: !process.env.X_BEARER_TOKEN
       ? 'X_BEARER_TOKEN env var is NOT set — X collector will always skip'
-      : 'X_BEARER_TOKEN is set — check errors field if X count is 0',
+      : collectorDiagnostics.errors?.x
+        ? `X failed: ${collectorDiagnostics.errors.x}`
+        : collectorDiagnostics.counts?.x === 0
+          ? 'X returned 0 posts — may be rate-guarded (20h window) or token issue'
+          : 'X_BEARER_TOKEN is set and collecting',
   });
 });
 
